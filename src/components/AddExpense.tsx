@@ -1,19 +1,26 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { CATEGORIES_CONFIG } from "../mockData";
-import { Expense } from "../types";
+import { Expense, PaymentMethod } from "../types";
+import { WeekNumber } from "../utils/week";
 
 interface AddExpenseProps {
   onSaveExpense: (expense: Omit<Expense, "id" | "date" | "status"> & { date?: string; status?: "Completado" | "Rechazado" }) => void;
+  activeWeek?: WeekNumber;
 }
 
-export default function AddExpense({ onSaveExpense }: AddExpenseProps) {
+export default function AddExpense({ onSaveExpense, activeWeek = 1 }: AddExpenseProps) {
   const [amount, setAmount] = useState<string>("");
   const [name, setName] = useState<string>("");
   const [category, setCategory] = useState<string>("Seleccionar categoría");
   const [description, setDescription] = useState<string>("");
-  const [selectedWeek, setSelectedWeek] = useState<number>(1);
+  const [selectedWeek, setSelectedWeek] = useState<number>(activeWeek);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("efectivo");
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
+
+  useEffect(() => {
+    setSelectedWeek(activeWeek);
+  }, [activeWeek]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,6 +49,7 @@ export default function AddExpense({ onSaveExpense }: AddExpenseProps) {
       category: catToSave,
       description: description.trim(),
       week: selectedWeek,
+      paymentMethod,
       date: new Date().toISOString()
     });
 
@@ -50,7 +58,8 @@ export default function AddExpense({ onSaveExpense }: AddExpenseProps) {
     setName("");
     setCategory("Seleccionar categoría");
     setDescription("");
-    setSelectedWeek(1);
+    setSelectedWeek(activeWeek);
+    setPaymentMethod("efectivo");
 
     setToastMessage("¡Gasto guardado exitosamente!");
     setShowToast(true);
@@ -147,6 +156,35 @@ export default function AddExpense({ onSaveExpense }: AddExpenseProps) {
               <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-[#bbcabf] pointer-events-none select-none text-xl">
                 expand_more
               </span>
+            </div>
+          </div>
+
+          {/* Payment Method */}
+          <div className="flex flex-col gap-1.5">
+            <label className="font-sans text-sm font-semibold text-[#dae2fd] ml-1">
+              Método de pago
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {([
+                { value: "efectivo" as PaymentMethod, label: "Efectivo", icon: "payments" },
+                { value: "tarjeta" as PaymentMethod, label: "Tarjeta", icon: "credit_card" },
+              ]).map((method) => (
+                <button
+                  type="button"
+                  key={method.value}
+                  onClick={() => setPaymentMethod(method.value)}
+                  className={`py-3 px-3 rounded-xl font-sans text-sm border transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                    paymentMethod === method.value
+                      ? method.value === "efectivo"
+                        ? "bg-[#4edea3]/10 border-[#4edea3] text-[#4edea3] shadow-[0_0_12px_rgba(78,222,163,0.15)]"
+                        : "bg-[#adc6ff]/10 border-[#adc6ff] text-[#adc6ff] shadow-[0_0_12px_rgba(173,198,255,0.15)]"
+                      : "bg-[#060e20] border-[#3c4a42] text-[#bbcabf] hover:border-[#bbcabf]/30"
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-lg">{method.icon}</span>
+                  {method.label}
+                </button>
+              ))}
             </div>
           </div>
 

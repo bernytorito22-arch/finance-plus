@@ -1,4 +1,5 @@
 export type TransactionStatus = 'Completado' | 'Rechazado';
+export type PaymentMethod = 'efectivo' | 'tarjeta';
 
 export interface Expense {
   id: string;
@@ -9,6 +10,7 @@ export interface Expense {
   date: string; // ISO string 2026-10-xx
   week: number; // 1, 2, 3, 4
   status: TransactionStatus;
+  paymentMethod?: PaymentMethod;
 }
 
 export interface Goal {
@@ -22,4 +24,11 @@ export interface Goal {
 export interface MonthlyBudget {
   totalBudget: number;
   income: number;
+}
+
+export interface WeeklyBudgets {
+  1: number;
+  2: number;
+  3: number;
+  4: number;
 }

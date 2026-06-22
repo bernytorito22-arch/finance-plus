@@ -1,16 +1,14 @@
 import { useState } from "react";
-import { Expense, Goal, MonthlyBudget } from "../types";
+import { Expense, MonthlyBudget } from "../types";
 import { CATEGORIES_CONFIG } from "../mockData";
 
 interface MonthlyDashboardProps {
   expenses: Expense[];
   budget: MonthlyBudget;
-  goals: Goal[];
-  onAddGoal?: (goal: Goal) => void;
   onUpdateBudget?: (budget: MonthlyBudget) => void;
 }
 
-export default function MonthlyDashboard({ expenses, budget, goals, onUpdateBudget }: MonthlyDashboardProps) {
+export default function MonthlyDashboard({ expenses, budget, onUpdateBudget }: MonthlyDashboardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editTotalBudget, setEditTotalBudget] = useState("");
   const [editIncome, setEditIncome] = useState("");
@@ -19,7 +17,12 @@ export default function MonthlyDashboard({ expenses, budget, goals, onUpdateBudg
   const totalIncome = budget.income;
   const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
   const remainingBudget = budget.totalBudget - totalExpenses;
-  const budgetPercentage = Math.min(100, Math.round((totalExpenses / budget.totalBudget) * 100));
+  const budgetPercentage = budget.totalBudget > 0
+    ? Math.min(100, Math.round((totalExpenses / budget.totalBudget) * 100))
+    : 0;
+  const incomeBarWidth = totalIncome > 0
+    ? Math.min(100, Math.round((totalExpenses / totalIncome) * 100))
+    : 0;
 
   // Category percentage calculation
   const categoryTotals: Record<string, number> = {};
@@ -35,7 +38,7 @@ export default function MonthlyDashboard({ expenses, budget, goals, onUpdateBudg
       total,
       percentage,
     };
-  }).filter((c) => c.total > 0 || c.name === "Otros"); // keep at least others or positive spending
+  }).filter((c) => c.total > 0);
 
   // SVG parameters for standard 100x100 donut
   const radius = 35;
@@ -56,6 +59,20 @@ export default function MonthlyDashboard({ expenses, budget, goals, onUpdateBudg
         strokeDashoffset,
       };
     });
+
+  const cashTotal = expenses
+    .filter((e) => (e.paymentMethod ?? "efectivo") === "efectivo")
+    .reduce((sum, e) => sum + e.amount, 0);
+  const cardTotal = expenses
+    .filter((e) => e.paymentMethod === "tarjeta")
+    .reduce((sum, e) => sum + e.amount, 0);
+  const paymentTotal = cashTotal + cardTotal;
+  const cashPercent = paymentTotal > 0 ? Math.round((cashTotal / paymentTotal) * 100) : 0;
+  const cardPercent = paymentTotal > 0 ? 100 - cashPercent : 0;
+  const paymentRadius = 35;
+  const paymentCircumference = 2 * Math.PI * paymentRadius;
+  const cashArcLength = (cashPercent / 100) * paymentCircumference;
+  const cardArcLength = (cardPercent / 100) * paymentCircumference;
 
   return (
     <div className="space-y-6">
@@ -80,10 +97,6 @@ export default function MonthlyDashboard({ expenses, budget, goals, onUpdateBudg
             </button>
           )}
         </div>
-        <div className="flex justify-center items-center gap-1 text-[#4edea3]">
-          <span className="material-symbols-outlined text-lg">trending_up</span>
-          <span className="font-mono text-xs">+12% vs mes anterior</span>
-        </div>
       </section>
 
       {/* Balance Overview Card - Grid */}
@@ -93,8 +106,11 @@ export default function MonthlyDashboard({ expenses, budget, goals, onUpdateBudg
           <p className="font-sans text-base sm:text-lg md:text-xl font-bold text-[#4edea3] truncate" title={`$${totalIncome.toLocaleString("es-ES", { minimumFractionDigits: 2 })}`}>
             ${totalIncome.toLocaleString("es-ES", { minimumFractionDigits: 2 })}
           </p>
-          <div className="h-1.5 bg-[#171f33] rounded-full overflow-hidden">
-            <div className="h-full bg-[#4edea3] w-[85%] shadow-[0_0_8px_rgba(78,222,163,0.5)] transition-all duration-700"></div>
+            <div className="h-1.5 bg-[#171f33] rounded-full overflow-hidden">
+            <div
+              className="h-full bg-[#4edea3] shadow-[0_0_8px_rgba(78,222,163,0.5)] transition-all duration-700"
+              style={{ width: `${incomeBarWidth}%` }}
+            ></div>
           </div>
         </div>
         
@@ -114,12 +130,7 @@ export default function MonthlyDashboard({ expenses, budget, goals, onUpdateBudg
 
       {/* Circular Expense Distribution Graph */}
       <section className="glass-card rounded-2xl p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-sans text-lg font-bold text-[#dae2fd]">Distribución</h3>
-          <span className="material-symbols-outlined text-[#bbcabf] cursor-pointer hover:text-white transition-colors">
-            more_vert
-          </span>
-        </div>
+        <h3 className="font-sans text-lg font-bold text-[#dae2fd] mb-4">Distribución</h3>
 
         <div className="flex flex-col items-center sm:flex-row sm:justify-around gap-6">
           {/* Animated Donut Chart */}
@@ -183,7 +194,12 @@ export default function MonthlyDashboard({ expenses, budget, goals, onUpdateBudg
 
           {/* Color Indicators Legends */}
           <div className="space-y-3 w-full sm:w-auto">
-            {categoriesWithPercentage.map((cat, idx) => {
+            {categoriesWithPercentage.length === 0 ? (
+              <p className="font-sans text-sm text-[#bbcabf]/70 text-center sm:text-left">
+                Sin gastos registrados aún
+              </p>
+            ) : (
+              categoriesWithPercentage.map((cat, idx) => {
               const bgIndicator = 
                 cat.name === "Alimentación" ? "bg-[#4edea3]" :
                 cat.name === "Transporte" ? "bg-[#adc6ff]" :
@@ -206,63 +222,118 @@ export default function MonthlyDashboard({ expenses, budget, goals, onUpdateBudg
                   </span>
                 </div>
               );
-            })}
+            })
+            )}
           </div>
         </div>
       </section>
 
-      {/* Monthly Goals Section */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="font-sans text-lg font-bold text-[#dae2fd]">Objetivos del Mes</h3>
-          <button className="text-[#4edea3] font-mono text-xs flex items-center gap-0.5 hover:underline transition-all cursor-pointer">
-            Ver todos
-            <span className="material-symbols-outlined text-sm font-semibold select-none">chevron_right</span>
-          </button>
-        </div>
+      {/* Payment Method Breakdown */}
+      <section className="glass-card rounded-2xl p-5">
+        <h3 className="font-sans text-lg font-bold text-[#dae2fd] mb-4">Efectivo vs Tarjeta</h3>
 
-        <div className="grid grid-cols-1 gap-3">
-          {goals.map((goal) => {
-            const progress = Math.min(100, Math.round((goal.current / goal.target) * 100));
-            const iconBg = 
-              goal.name === "Fondo Casa" ? "bg-[#4edea3]/10 text-[#4edea3] border-[#4edea3]/20" :
-              "bg-[#adc6ff]/10 text-[#adc6ff] border-[#adc6ff]/20";
+        <div className="flex flex-col items-center sm:flex-row sm:justify-around gap-6">
+          <div className="relative w-[180px] h-[180px]">
+            <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+              <circle
+                cx="50"
+                cy="50"
+                r={paymentRadius}
+                fill="transparent"
+                stroke="#171f33"
+                strokeWidth="10"
+              />
+              {paymentTotal === 0 ? (
+                <circle
+                  cx="50"
+                  cy="50"
+                  r={paymentRadius}
+                  fill="transparent"
+                  stroke="#2d3449"
+                  strokeWidth="10"
+                />
+              ) : (
+                <>
+                  {cashTotal > 0 && (
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r={paymentRadius}
+                      fill="transparent"
+                      stroke="#4edea3"
+                      strokeWidth="10"
+                      strokeDasharray={`${cashArcLength} ${paymentCircumference}`}
+                      strokeDashoffset="0"
+                      strokeLinecap="round"
+                      className="transition-all duration-1000"
+                    />
+                  )}
+                  {cardTotal > 0 && (
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r={paymentRadius}
+                      fill="transparent"
+                      stroke="#adc6ff"
+                      strokeWidth="10"
+                      strokeDasharray={`${cardArcLength} ${paymentCircumference}`}
+                      strokeDashoffset={-cashArcLength}
+                      strokeLinecap="round"
+                      className="transition-all duration-1000"
+                    />
+                  )}
+                </>
+              )}
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="font-mono text-xs text-[#bbcabf] uppercase tracking-wide">Total</span>
+              <span className="font-sans text-lg font-black text-[#dae2fd]">
+                ${paymentTotal.toLocaleString("es-ES", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              </span>
+            </div>
+          </div>
 
-            const accentText = 
-              goal.name === "Fondo Casa" ? "text-[#4edea3]" : "text-[#adc6ff]";
-
-            const barColor = 
-              goal.name === "Fondo Casa" ? "from-[#4edea3] to-[#10b981]" : "from-[#adc6ff] to-[#0566d9]";
-
-            return (
-              <div 
-                key={goal.id} 
-                className="glass-card rounded-xl p-4 flex items-center gap-4 relative overflow-hidden group transition-all hover:bg-[#222a3d]/60"
-              >
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center border ${iconBg} shrink-0`}>
-                  <span className="material-symbols-outlined text-xl">{goal.icon}</span>
-                </div>
-                
-                <div className="flex-1 space-y-1.5 min-w-0">
-                  <div className="flex justify-between items-center">
-                    <span className="font-sans text-sm font-bold text-[#dae2fd] truncate">{goal.name}</span>
-                    <span className={`font-mono text-xs font-bold ${accentText}`}>{progress}%</span>
-                  </div>
-                  
-                  <div className="h-1.5 bg-[#060e20] rounded-full overflow-hidden">
-                    <div 
-                      className={`h-full bg-gradient-to-r ${barColor} transition-all duration-1000`}
-                      style={{ width: `${progress}%` }}
-                    ></div>
-                  </div>
-                  
-                  <p className="font-mono text-xs text-[#bbcabf]">
-                    ${goal.current.toLocaleString("es-ES")} de ${goal.target.toLocaleString("es-ES")}
-                  </p>
-                </div>
+          <div className="space-y-4 w-full sm:w-auto">
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-3 h-3 rounded-full bg-[#4edea3] shadow-[0_0_10px_rgba(78,222,163,0.4)] shrink-0" />
+                <span className="font-sans text-sm text-[#dae2fd] flex-1">Efectivo</span>
+                <span className="font-mono text-xs text-[#bbcabf] font-semibold">{cashPercent}%</span>
               </div>
-            );
-          })}
+              <div className="h-2 bg-[#171f33] rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-[#4edea3] shadow-[0_0_8px_rgba(78,222,163,0.5)] transition-all duration-700"
+                  style={{ width: `${cashPercent}%` }}
+                />
+              </div>
+              <p className="font-mono text-sm font-bold text-[#4edea3]">
+                ${cashTotal.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-3 h-3 rounded-full bg-[#adc6ff] shadow-[0_0_10px_rgba(173,198,255,0.4)] shrink-0" />
+                <span className="font-sans text-sm text-[#dae2fd] flex-1">Tarjeta</span>
+                <span className="font-mono text-xs text-[#bbcabf] font-semibold">{cardPercent}%</span>
+              </div>
+              <div className="h-2 bg-[#171f33] rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-[#adc6ff] shadow-[0_0_8px_rgba(173,198,255,0.5)] transition-all duration-700"
+                  style={{ width: `${cardPercent}%` }}
+                />
+              </div>
+              <p className="font-mono text-sm font-bold text-[#adc6ff]">
+                ${cardTotal.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+            </div>
+
+            {paymentTotal === 0 && (
+              <p className="font-sans text-sm text-[#bbcabf]/70 text-center sm:text-left">
+                Registra gastos indicando el método de pago
+              </p>
+            )}
+          </div>
         </div>
       </section>
 

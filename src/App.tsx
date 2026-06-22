@@ -4,70 +4,77 @@ import MonthlyDashboard from "./components/MonthlyDashboard";
 import WeeklyTracking from "./components/WeeklyTracking";
 import AddExpense from "./components/AddExpense";
 import AnalysisDetailed from "./components/AnalysisDetailed";
-import { INITIAL_EXPENSES, INITIAL_BUDGET, INITIAL_GOALS } from "./mockData";
-import { Expense, Goal, MonthlyBudget } from "./types";
+import { Expense, MonthlyBudget, WeeklyBudgets } from "./types";
+import { WeekNumber } from "./utils/week";
+import {
+  createSnapshot,
+  DataMode,
+  getDemoSnapshot,
+  initializeAppData,
+  loadUserSnapshot,
+  persistDataMode,
+  persistUserSnapshot,
+} from "./utils/storage";
 
 type ActiveTab = "monthly" | "weekly" | "add" | "analysis";
+
+const initialAppData = initializeAppData();
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>(() => {
     try {
       const saved = localStorage.getItem("finanzapro_active_tab");
-      return (saved as ActiveTab) || "add";
+      return (saved as ActiveTab) || "monthly";
     } catch {
-      return "add";
+      return "monthly";
     }
   });
+
+  const [dataMode, setDataMode] = useState<DataMode>(initialAppData.mode);
+  const [expenses, setExpenses] = useState<Expense[]>(initialAppData.snapshot.expenses);
+  const [budget, setBudget] = useState<MonthlyBudget>(initialAppData.snapshot.budget);
+  const [weekBudgets, setWeekBudgets] = useState<WeeklyBudgets>(initialAppData.snapshot.weekBudgets);
+  const [activeWeek, setActiveWeek] = useState<WeekNumber>(initialAppData.snapshot.activeWeek);
+
+  const [aiRecommendation, setAiRecommendation] = useState<string>("");
+  const [isLoadingAi, setIsLoadingAi] = useState<boolean>(false);
+
+  const isDemoMode = dataMode === "demo";
 
   useEffect(() => {
     localStorage.setItem("finanzapro_active_tab", activeTab);
   }, [activeTab]);
 
-  // Load state from localStorage on init, fallback to default mock data
-  const [expenses, setExpenses] = useState<Expense[]>(() => {
-    try {
-      const saved = localStorage.getItem("finanzapro_expenses");
-      return saved ? JSON.parse(saved) : INITIAL_EXPENSES;
-    } catch {
-      return INITIAL_EXPENSES;
-    }
-  });
-
-  const [budget, setBudget] = useState<MonthlyBudget>(() => {
-    try {
-      const saved = localStorage.getItem("finanzapro_budget");
-      return saved ? JSON.parse(saved) : INITIAL_BUDGET;
-    } catch {
-      return INITIAL_BUDGET;
-    }
-  });
-
-  const [goals, setGoals] = useState<Goal[]>(() => {
-    try {
-      const saved = localStorage.getItem("finanzapro_goals");
-      return saved ? JSON.parse(saved) : INITIAL_GOALS;
-    } catch {
-      return INITIAL_GOALS;
-    }
-  });
-
-  const [aiRecommendation, setAiRecommendation] = useState<string>("");
-  const [isLoadingAi, setIsLoadingAi] = useState<boolean>(false);
-
-  // Sync to localStorage
   useEffect(() => {
-    localStorage.setItem("finanzapro_expenses", JSON.stringify(expenses));
-  }, [expenses]);
+    persistDataMode(dataMode);
+  }, [dataMode]);
 
   useEffect(() => {
-    localStorage.setItem("finanzapro_budget", JSON.stringify(budget));
-  }, [budget]);
+    if (dataMode !== "personal") return;
 
-  useEffect(() => {
-    localStorage.setItem("finanzapro_goals", JSON.stringify(goals));
-  }, [goals]);
+    persistUserSnapshot(createSnapshot(expenses, budget, weekBudgets, activeWeek));
+  }, [expenses, budget, weekBudgets, activeWeek, dataMode]);
 
-  // Request real-time financial tips from server proxying Gemini model!
+  const applySnapshot = (snapshot: ReturnType<typeof getDemoSnapshot>) => {
+    setExpenses(snapshot.expenses);
+    setBudget(snapshot.budget);
+    setWeekBudgets(snapshot.weekBudgets);
+    setActiveWeek(snapshot.activeWeek);
+    setAiRecommendation("");
+  };
+
+  const handleToggleDataMode = () => {
+    if (dataMode === "demo") {
+      setDataMode("personal");
+      applySnapshot(loadUserSnapshot());
+      return;
+    }
+
+    persistUserSnapshot(createSnapshot(expenses, budget, weekBudgets, activeWeek));
+    setDataMode("demo");
+    applySnapshot(getDemoSnapshot());
+  };
+
   const handleRefreshAi = async () => {
     setIsLoadingAi(true);
     try {
@@ -77,7 +84,7 @@ export default function App() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          expenses: expenses,
+          expenses,
           budget: budget.totalBudget,
           income: budget.income,
         }),
@@ -101,32 +108,16 @@ export default function App() {
     }
   };
 
-  // Add standard new transaction
   const handleSaveExpense = (newExpense: Omit<Expense, "id" | "date" | "status"> & { date?: string; status?: "Completado" | "Rechazado" }) => {
     const expenseWithId: Expense = {
       ...newExpense,
       id: `exp_${Date.now()}`,
       date: newExpense.date || new Date().toISOString(),
-      status: newExpense.status || "Completado"
+      status: newExpense.status || "Completado",
     };
 
     setExpenses((prev) => [expenseWithId, ...prev]);
 
-    // Also update dynamic goals if some expense category is housing/rent, let's simulate
-    if (newExpense.category === "Vivienda") {
-      setGoals((prev) =>
-        prev.map((g) => {
-          if (g.name === "Fondo Casa") {
-            // Add progress
-            const updatedCurrent = Math.min(g.target, g.current + newExpense.amount * 0.1);
-            return { ...g, current: Math.round(updatedCurrent) };
-          }
-          return g;
-        })
-      );
-    }
-
-    // Move search to tracking to let them see results immediately
     setTimeout(() => {
       setActiveTab("weekly");
     }, 1200);
@@ -138,36 +129,57 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#0b1326] text-[#dae2fd]">
-      {/* Top Main Navigation Shell */}
-      <Header appName="Finance+" />
+      <Header
+        appName="Finance+"
+        isDemoMode={isDemoMode}
+        onToggleDataMode={handleToggleDataMode}
+      />
 
-      {/* Main Single screen visual viewport content */}
-      <main className="pt-24 pb-32 px-4 max-w-lg mx-auto min-h-screen">
+      {isDemoMode && (
+        <div className="fixed top-[60px] left-0 w-full z-40 px-4">
+          <div className="max-w-lg mx-auto bg-[#4edea3]/10 border border-[#4edea3]/25 rounded-xl px-3 py-2 flex items-center gap-2">
+            <span className="material-symbols-outlined text-[#4edea3] text-base">science</span>
+            <p className="font-sans text-xs text-[#dae2fd]">
+              Estás viendo <span className="font-bold text-[#4edea3]">datos de ejemplo</span>. Cambia a tus datos para empezar en blanco.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <main className={`pb-32 px-4 max-w-lg mx-auto min-h-screen ${isDemoMode ? "pt-32" : "pt-24"}`}>
         {activeTab === "monthly" && (
-          <MonthlyDashboard 
-            expenses={expenses} 
-            budget={budget} 
-            goals={goals} 
+          <MonthlyDashboard
+            expenses={expenses}
+            budget={budget}
             onUpdateBudget={setBudget}
           />
         )}
 
         {activeTab === "weekly" && (
-          <WeeklyTracking 
-            expenses={expenses} 
-            onDeleteExpense={handleDeleteExpense} 
+          <WeeklyTracking
+            expenses={expenses}
+            weekBudgets={weekBudgets}
+            activeWeek={activeWeek}
+            onActiveWeekChange={setActiveWeek}
+            onUpdateWeekBudgets={setWeekBudgets}
+            monthlyBudget={budget.totalBudget}
+            onDeleteExpense={handleDeleteExpense}
           />
         )}
 
         {activeTab === "add" && (
-          <AddExpense 
-            onSaveExpense={handleSaveExpense} 
+          <AddExpense
+            onSaveExpense={handleSaveExpense}
+            activeWeek={activeWeek}
           />
         )}
 
         {activeTab === "analysis" && (
-          <AnalysisDetailed 
-            expenses={expenses} 
+          <AnalysisDetailed
+            expenses={expenses}
+            budget={budget}
+            activeWeek={activeWeek}
+            onActiveWeekChange={setActiveWeek}
             aiRecommendation={aiRecommendation}
             onRefreshAi={handleRefreshAi}
             isLoadingAi={isLoadingAi}
@@ -175,9 +187,7 @@ export default function App() {
         )}
       </main>
 
-      {/* Bottom Navigation Shell (Predictive mapping with exact match for high visual polish) */}
       <nav className="fixed bottom-0 left-0 w-full z-50 rounded-t-2xl bg-[#171f33]/90 backdrop-blur-2xl border-t border-white/5 shadow-[0_-4px_20px_rgba(78,222,163,0.15)] flex justify-around items-center px-4 pb-6 pt-2.5">
-        {/* Monthly Tab */}
         <button
           onClick={() => setActiveTab("monthly")}
           className={`flex flex-col items-center justify-center transition-all cursor-pointer ${
@@ -186,13 +196,12 @@ export default function App() {
               : "text-[#bbcabf] hover:text-[#4edea3]/80 active:scale-90 duration-200"
           }`}
         >
-          <span className="material-symbols-outlined" style={{ fontVariationSettings: `'FILL' ${activeTab === 'monthly' ? 1 : 0}` }}>
+          <span className="material-symbols-outlined" style={{ fontVariationSettings: `'FILL' ${activeTab === "monthly" ? 1 : 0}` }}>
             dashboard
           </span>
           <span className="font-mono text-[10px] tracking-wide mt-0.5">Monthly</span>
         </button>
 
-        {/* Weekly Tab */}
         <button
           onClick={() => setActiveTab("weekly")}
           className={`flex flex-col items-center justify-center transition-all cursor-pointer ${
@@ -201,13 +210,12 @@ export default function App() {
               : "text-[#bbcabf] hover:text-[#4edea3]/80 active:scale-90 duration-200"
           }`}
         >
-          <span className="material-symbols-outlined" style={{ fontVariationSettings: `'FILL' ${activeTab === 'weekly' ? 1 : 0}` }}>
+          <span className="material-symbols-outlined" style={{ fontVariationSettings: `'FILL' ${activeTab === "weekly" ? 1 : 0}` }}>
             calendar_view_week
           </span>
           <span className="font-mono text-[10px] tracking-wide mt-0.5">Weekly</span>
         </button>
 
-        {/* Floating Centered Add Button */}
         <button
           onClick={() => setActiveTab("add")}
           className={`relative z-10 w-12 h-12 rounded-full flex items-center justify-center active:scale-90 transition-transform cursor-pointer ${
@@ -222,7 +230,6 @@ export default function App() {
           </span>
         </button>
 
-        {/* Analysis Tab */}
         <button
           onClick={() => setActiveTab("analysis")}
           className={`flex flex-col items-center justify-center transition-all cursor-pointer ${
@@ -231,10 +238,10 @@ export default function App() {
               : "text-[#bbcabf] hover:text-[#4edea3]/80 active:scale-90 duration-200"
           }`}
         >
-          <span className="material-symbols-outlined" style={{ fontVariationSettings: `'FILL' ${activeTab === 'analysis' ? 1 : 0}` }}>
+          <span className="material-symbols-outlined" style={{ fontVariationSettings: `'FILL' ${activeTab === "analysis" ? 1 : 0}` }}>
             analytics
           </span>
-          <span className="font-mono text-[10px] tracking-wide mt-0.5">Analysis</span>
+          <span className="font-mono text-[10px] tracking-wide mt-0.5">Resumen</span>
         </button>
       </nav>
     </div>

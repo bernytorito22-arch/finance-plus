@@ -1,150 +1,141 @@
-import { Expense, Goal, MonthlyBudget } from "./types";
+import { Expense, MonthlyBudget, WeeklyBudgets } from "./types";
+import { WeekNumber } from "./utils/week";
+
+function demoDate(daysAgo: number, hour = 12, minute = 0): string {
+  const date = new Date();
+  date.setDate(date.getDate() - daysAgo);
+  date.setHours(hour, minute, 0, 0);
+  return date.toISOString();
+}
 
 export const INITIAL_BUDGET: MonthlyBudget = {
-  totalBudget: 4250.00,
-  income: 6120.00
+  totalBudget: 0,
+  income: 0,
 };
 
-export const INITIAL_GOALS: Goal[] = [
-  {
-    id: "g1",
-    name: "Fondo Casa",
-    target: 4000,
-    current: 3000,
-    icon: "house"
-  },
-  {
-    id: "g2",
-    name: "Viaje Japón",
-    target: 2500,
-    current: 800,
-    icon: "flight"
-  }
-];
+export const INITIAL_WEEK_BUDGETS: WeeklyBudgets = {
+  1: 0,
+  2: 0,
+  3: 0,
+  4: 0,
+};
 
-export const INITIAL_EXPENSES: Expense[] = [
-  // Semana 1 Expenses (Sum up to $1,240.50 exactly in total spent)
+export const INITIAL_EXPENSES: Expense[] = [];
+
+export const DEMO_BUDGET: MonthlyBudget = {
+  totalBudget: 2500,
+  income: 3200,
+};
+
+export const DEMO_WEEK_BUDGETS: WeeklyBudgets = {
+  1: 600,
+  2: 650,
+  3: 625,
+  4: 625,
+};
+
+export const DEMO_ACTIVE_WEEK: WeekNumber = 2;
+
+export const DEMO_EXPENSES: Expense[] = [
   {
-    id: "w1-1",
-    name: "Supermercado Central",
-    amount: 154.20,
+    id: "demo_1",
+    name: "Supermercado",
+    amount: 92.4,
     category: "Alimentación",
-    description: "Compra semanal de víveres",
-    date: "2026-10-04T14:30:00Z",
+    description: "",
+    date: demoDate(18, 10, 30),
     week: 1,
-    status: "Rechazado"
+    status: "Completado",
+    paymentMethod: "tarjeta",
   },
   {
-    id: "w1-2",
-    name: "Gasolinera Shell",
-    amount: 65.00,
+    id: "demo_2",
+    name: "Uber al trabajo",
+    amount: 18.5,
     category: "Transporte",
-    description: "Carga de combustible",
-    date: "2026-10-03T09:15:00Z",
+    description: "",
+    date: demoDate(16, 8, 15),
     week: 1,
-    status: "Completado"
+    status: "Completado",
+    paymentMethod: "tarjeta",
   },
   {
-    id: "w1-3",
-    name: "La Parrilla de Juan",
-    amount: 42.50,
-    category: "Ocio",
-    description: "Cena de fin de semana",
-    date: "2026-10-02T21:00:00Z",
+    id: "demo_3",
+    name: "Café y desayuno",
+    amount: 12.75,
+    category: "Alimentación",
+    description: "",
+    date: demoDate(14, 9, 0),
     week: 1,
-    status: "Completado"
+    status: "Completado",
+    paymentMethod: "efectivo",
   },
   {
-    id: "w1-4",
-    name: "Alquiler y Servicios",
-    amount: 600.00,
+    id: "demo_4",
+    name: "Renta apartamento",
+    amount: 850,
     category: "Vivienda",
-    description: "Pago parcial de expensas y luz",
-    date: "2026-10-01T08:00:00Z",
-    week: 1,
-    status: "Completado"
-  },
-  {
-    id: "w1-5",
-    name: "Suscripción Cloud y Software",
-    amount: 28.80,
-    category: "Otros",
-    description: "Suscripciones mensuales recurrentes",
-    date: "2026-10-01T10:15:00Z",
-    week: 1,
-    status: "Completado"
-  },
-  {
-    id: "w1-6",
-    name: "Zapatos Deportivos Nike",
-    amount: 350.00,
-    category: "Compras",
-    description: "Equipamiento para correr",
-    date: "2026-10-03T16:00:00Z",
-    week: 1,
-    status: "Completado"
-  },
-  // Semana 2 Expenses (Sum to $890.20 as in screens)
-  {
-    id: "w2-1",
-    name: "Mercado Local y Carnicería",
-    amount: 120.50,
-    category: "Alimentación",
-    description: "Carnes y verduras frescas",
-    date: "2026-10-11T12:00:00Z",
+    description: "Pago mensual de alquiler correspondiente al mes en curso.",
+    date: demoDate(10, 14, 0),
     week: 2,
-    status: "Completado"
+    status: "Completado",
+    paymentMethod: "tarjeta",
   },
   {
-    id: "w2-2",
-    name: "Tarjeta de Metro",
-    amount: 30.00,
-    category: "Transporte",
-    description: "Recarga abono mensual",
-    date: "2026-10-08T08:30:00Z",
-    week: 2,
-    status: "Completado"
-  },
-  {
-    id: "w2-3",
-    name: "Suscripción Netflix & Spotify",
-    amount: 25.00,
+    id: "demo_5",
+    name: "Cena con amigos",
+    amount: 45.9,
     category: "Ocio",
-    description: "Egresos digitales entretenimiento",
-    date: "2026-10-09T01:00:00Z",
+    description: "Restaurante italiano — compartimos entrada, pasta y postre. Incluye propina.",
+    date: demoDate(8, 21, 30),
     week: 2,
-    status: "Completado"
+    status: "Completado",
+    paymentMethod: "tarjeta",
   },
   {
-    id: "w2-4",
-    name: "Farmacia San Juan",
-    amount: 85.00,
+    id: "demo_6",
+    name: "Farmacia",
+    amount: 24.3,
     category: "Salud",
-    description: "Multivitamínicos y analgésicos",
-    date: "2026-10-10T15:45:00Z",
+    description: "",
+    date: demoDate(6, 17, 45),
     week: 2,
-    status: "Completado"
+    status: "Completado",
+    paymentMethod: "efectivo",
   },
   {
-    id: "w2-5",
-    name: "Cena Sushi Premium",
-    amount: 130.00,
-    category: "Ocio",
-    description: "Celebración especial",
-    date: "2026-10-12T20:30:00Z",
+    id: "demo_7",
+    name: "Gasolina",
+    amount: 38,
+    category: "Transporte",
+    description: "",
+    date: demoDate(4, 7, 20),
     week: 2,
-    status: "Completado"
+    status: "Completado",
+    paymentMethod: "tarjeta",
   },
   {
-    id: "w2-6",
-    name: "Pago de Alquiler",
-    amount: 500.00,
-    category: "Vivienda",
-    description: "Abono mensual arrendamiento",
-    date: "2026-10-07T09:00:00Z",
+    id: "demo_8",
+    name: "Ropa deportiva",
+    amount: 67.99,
+    category: "Compras",
+    description: "",
+    date: demoDate(2, 16, 10),
     week: 2,
-    status: "Completado"
-  }
+    status: "Completado",
+    paymentMethod: "tarjeta",
+  },
+  {
+    id: "demo_9",
+    name: "Mercado local",
+    amount: 31.2,
+    category: "Alimentación",
+    description: "",
+    date: demoDate(1, 11, 0),
+    week: 3,
+    status: "Completado",
+    paymentMethod: "efectivo",
+  },
 ];
 
 // Reusable categories config for selector and design accents
