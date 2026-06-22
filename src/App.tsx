@@ -136,7 +136,7 @@ export default function App() {
       />
 
       {isDemoMode && (
-        <div className="fixed top-[60px] left-0 w-full z-40 px-4">
+        <div className="app-demo-banner fixed left-0 w-full z-40 px-4">
           <div className="max-w-lg mx-auto bg-[#4edea3]/10 border border-[#4edea3]/25 rounded-xl px-3 py-2 flex items-center gap-2">
             <span className="material-symbols-outlined text-[#4edea3] text-base">science</span>
             <p className="font-sans text-xs text-[#dae2fd]">
@@ -146,7 +146,7 @@ export default function App() {
         </div>
       )}
 
-      <main className={`pb-32 px-4 max-w-lg mx-auto min-h-screen ${isDemoMode ? "pt-32" : "pt-24"}`}>
+      <main className={`px-4 max-w-lg mx-auto min-h-screen ${isDemoMode ? "app-main-with-banner" : "app-main"}`}>
         {activeTab === "monthly" && (
           <MonthlyDashboard
             expenses={expenses}
@@ -187,7 +187,7 @@ export default function App() {
         )}
       </main>
 
-      <nav className="fixed bottom-0 left-0 w-full z-50 rounded-t-2xl bg-[#171f33]/90 backdrop-blur-2xl border-t border-white/5 shadow-[0_-4px_20px_rgba(78,222,163,0.15)] flex justify-around items-center px-4 pb-6 pt-2.5">
+      <nav className="app-bottom-nav safe-area-bottom fixed bottom-0 left-0 w-full z-50 rounded-t-2xl bg-[#171f33]/90 backdrop-blur-2xl border-t border-white/5 shadow-[0_-4px_20px_rgba(78,222,163,0.15)] flex justify-around items-center px-4 pt-2.5">
         <button
           onClick={() => setActiveTab("monthly")}
           className={`flex flex-col items-center justify-center transition-all cursor-pointer ${
