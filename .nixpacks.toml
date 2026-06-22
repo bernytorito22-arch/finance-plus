@@ -1,0 +1,8 @@
+[phases.setup]
+nixPkgs = ["nodejs_20", "npm-11_x"]
+
+[phases.install]
+cmd = "npm install"
+
+[phases.build]
+cmd = "npm run build"

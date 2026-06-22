@@ -1,0 +1,6 @@
+{
+  "name": "Finance+",
+  "description": "Una aplicación fintech moderna para el control inteligente de gastos, presupuestos mensuales y semanales con recomendaciones y análisis avanzados.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

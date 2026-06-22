@@ -1,0 +1,17 @@
+{
+  "short_name": "Finance+",
+  "name": "Finance+ Control de Gastos Inteligente",
+  "icons": [
+    {
+      "src": "/finance_app_logo_1781383907195.jpg",
+      "type": "image/jpeg",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0b1326",
+  "theme_color": "#0b1326",
+  "display": "standalone",
+  "orientation": "portrait"
+}
