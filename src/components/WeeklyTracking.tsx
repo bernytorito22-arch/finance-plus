@@ -1,8 +1,15 @@
 import { useState, useEffect } from "react";
-import { Expense, WeeklyBudgets } from "../types";
+import { Expense, FinanceCycleConfig, WeeklyBudgets } from "../types";
 import { CATEGORIES_CONFIG } from "../mockData";
 import ActiveWeekSelector from "./ActiveWeekSelector";
-import { WeekNumber } from "../utils/week";
+import {
+  clampMonthStartDay,
+  getCurrentWeekRange,
+  getDaysRemainingInRange,
+  getFinanceCycleRange,
+  getFinanceWeekRanges,
+  WeekNumber,
+} from "../utils/week";
 
 interface WeeklyTrackingProps {
   expenses: Expense[];
@@ -12,6 +19,8 @@ interface WeeklyTrackingProps {
   onUpdateWeekBudgets?: (budgets: WeeklyBudgets) => void;
   monthlyBudget?: number;
   onDeleteExpense?: (id: string) => void;
+  financeCycleConfig: FinanceCycleConfig;
+  onUpdateFinanceCycleConfig: (config: FinanceCycleConfig) => void;
 }
 
 export default function WeeklyTracking({
@@ -22,10 +31,16 @@ export default function WeeklyTracking({
   onUpdateWeekBudgets,
   monthlyBudget = 0,
   onDeleteExpense,
+  financeCycleConfig,
+  onUpdateFinanceCycleConfig,
 }: WeeklyTrackingProps) {
   const [selectedWeek, setSelectedWeek] = useState<number>(activeWeek);
   const [expandedDescriptionId, setExpandedDescriptionId] = useState<string | null>(null);
   const [isEditingBudgets, setIsEditingBudgets] = useState(false);
+  const [isEditingCycle, setIsEditingCycle] = useState(false);
+  const [editCycleStartDay, setEditCycleStartDay] = useState(
+    financeCycleConfig.monthStartDay.toString()
+  );
   const [editWeekBudgets, setEditWeekBudgets] = useState<Record<number, string>>({
     1: "0",
     2: "0",
@@ -36,6 +51,17 @@ export default function WeeklyTracking({
   useEffect(() => {
     setSelectedWeek(activeWeek);
   }, [activeWeek]);
+
+  useEffect(() => {
+    setEditCycleStartDay(financeCycleConfig.monthStartDay.toString());
+  }, [financeCycleConfig.monthStartDay]);
+
+  const now = new Date();
+  const cycleRange = getFinanceCycleRange(now, financeCycleConfig.monthStartDay);
+  const weekRanges = getFinanceWeekRanges(cycleRange, now);
+  const currentWeekRange = getCurrentWeekRange(cycleRange, now, financeCycleConfig.monthStartDay);
+  const daysLeftInWeek = getDaysRemainingInRange(currentWeekRange, now);
+  const daysLeftInCycle = getDaysRemainingInRange(cycleRange, now);
 
   const handleActiveWeekChange = (week: WeekNumber) => {
     onActiveWeekChange(week);
@@ -91,10 +117,6 @@ export default function WeeklyTracking({
     });
   };
 
-  const currentMonthName = new Intl.DateTimeFormat("es-ES", { month: "long" })
-    .format(new Date())
-    .replace(/^\w/, (char) => char.toUpperCase());
-
   const formatDate = (dateStr: string) => {
     try {
       const d = new Date(dateStr);
@@ -115,24 +137,60 @@ export default function WeeklyTracking({
         <div>
           <h2 className="font-sans text-2xl font-bold text-[#dae2fd] mb-1">Seguimiento Semanal</h2>
           <p className="text-[#bbcabf] font-sans text-sm">
-            Resumen de tus gastos de {currentMonthName} por semana.
+            Ciclo {cycleRange.label}
           </p>
         </div>
-        {onUpdateWeekBudgets && (
+        <div className="flex items-center gap-2 shrink-0">
           <button
-            onClick={openBudgetEditor}
-            className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 text-[#4edea3] flex items-center justify-center border border-white/5 transition-all cursor-pointer shrink-0"
-            title="Configurar presupuestos semanales"
+            onClick={() => setIsEditingCycle(true)}
+            className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 text-[#4edea3] flex items-center justify-center border border-white/5 transition-all cursor-pointer"
+            title="Configurar inicio del ciclo"
           >
-            <span className="material-symbols-outlined text-base font-semibold">tune</span>
+            <span className="material-symbols-outlined text-base font-semibold">event</span>
           </button>
-        )}
+          {onUpdateWeekBudgets && (
+            <button
+              onClick={openBudgetEditor}
+              className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 text-[#4edea3] flex items-center justify-center border border-white/5 transition-all cursor-pointer"
+              title="Configurar presupuestos semanales"
+            >
+              <span className="material-symbols-outlined text-base font-semibold">tune</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="glass-card rounded-xl p-4 space-y-2 border border-[#4edea3]/15">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="font-mono text-[10px] text-[#bbcabf] uppercase tracking-wider">
+              Semana actual
+            </p>
+            <p className="font-sans text-sm font-semibold text-[#dae2fd] mt-1">
+              Semana {currentWeekRange.week} · {currentWeekRange.label}
+            </p>
+          </div>
+          <span className="material-symbols-outlined text-[#4edea3] text-xl">today</span>
+        </div>
+        <div className="flex flex-wrap gap-2 text-xs font-sans text-[#bbcabf]">
+          <span className="rounded-lg bg-white/5 px-2.5 py-1">
+            {daysLeftInWeek === 0
+              ? "Esta semana termina hoy"
+              : `Te quedan ${daysLeftInWeek} ${daysLeftInWeek === 1 ? "día" : "días"} de esta semana`}
+          </span>
+          <span className="rounded-lg bg-white/5 px-2.5 py-1">
+            {daysLeftInCycle === 0
+              ? "Tu ciclo termina hoy"
+              : `Tu ciclo termina en ${daysLeftInCycle} ${daysLeftInCycle === 1 ? "día" : "días"}`}
+          </span>
+        </div>
       </div>
 
       <div className="glass-card rounded-xl p-4">
         <ActiveWeekSelector
           activeWeek={activeWeek}
           onActiveWeekChange={handleActiveWeekChange}
+          weekRanges={weekRanges}
         />
       </div>
 
@@ -143,6 +201,8 @@ export default function WeeklyTracking({
           const limit = weekBudgets[wk];
           const isSelected = selectedWeek === wk;
           const hasSpent = spent > 0;
+          const weekRange = weekRanges.find((range) => range.week === wk);
+          const isCompleted = weekRange?.status === "completed";
 
           const ratio = limit > 0
             ? Math.min(100, Math.round((spent / limit) * 100))
@@ -155,15 +215,24 @@ export default function WeeklyTracking({
               className={`rounded-xl p-4 cursor-pointer transition-all duration-300 transform active:scale-98 relative ${
                 isSelected
                   ? "glass-card-active border-[#4edea3]/40 neo-glow"
-                  : "glass-card border-white/5 hover:border-white/15"
+                  : isCompleted
+                    ? "glass-card border-white/5 opacity-80 hover:opacity-100"
+                    : "glass-card border-white/5 hover:border-white/15"
               }`}
             >
               <div className="flex justify-between items-start mb-2">
-                <span className={`font-mono text-xs font-bold ${isSelected ? "text-[#4edea3]" : "text-[#bbcabf]"}`}>
-                  Semana {wk}
-                </span>
-                <span className="material-symbols-outlined text-[#4edea3] text-lg select-none" style={{ fontVariationSettings: `'FILL' ${isSelected ? 1 : 0}` }}>
-                  {hasSpent ? "check_circle" : isSelected ? "schedule" : "calendar_today"}
+                <div>
+                  <span className={`font-mono text-xs font-bold block ${isSelected ? "text-[#4edea3]" : "text-[#bbcabf]"}`}>
+                    Semana {wk}
+                  </span>
+                  {weekRange && (
+                    <span className="font-mono text-[9px] text-[#bbcabf]/70 block mt-0.5">
+                      {weekRange.label}
+                    </span>
+                  )}
+                </div>
+                <span className="material-symbols-outlined text-[#4edea3] text-lg select-none" style={{ fontVariationSettings: `'FILL' ${isSelected || isCompleted ? 1 : 0}` }}>
+                  {isCompleted ? "check_circle" : hasSpent ? "check_circle" : isSelected ? "schedule" : "calendar_today"}
                 </span>
               </div>
 
@@ -355,6 +424,67 @@ export default function WeeklyTracking({
           )}
         </div>
       </div>
+      )}
+
+      {isEditingCycle && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#060e20]/85 backdrop-blur-md">
+          <div className="glass-card w-full max-w-sm rounded-2xl p-6 space-y-5 animate-fade-in relative border border-white/10 shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+            <div className="flex items-center justify-between pb-2 border-b border-white/5">
+              <h3 className="font-sans text-lg font-bold text-[#dae2fd] flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-[#4edea3]">event</span>
+                Inicio del ciclo
+              </h3>
+              <button
+                onClick={() => setIsEditingCycle(false)}
+                className="text-[#bbcabf] hover:text-white transition-all cursor-pointer w-6 h-6 flex items-center justify-center rounded-lg hover:bg-white/5"
+              >
+                <span className="material-symbols-outlined text-lg">close</span>
+              </button>
+            </div>
+
+            <p className="font-sans text-xs text-[#bbcabf] leading-relaxed">
+              Define el día en que empieza tu ciclo financiero. Las semanas y el export se calcularán desde esa fecha.
+            </p>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                onUpdateFinanceCycleConfig({
+                  monthStartDay: clampMonthStartDay(parseInt(editCycleStartDay, 10)),
+                });
+                setIsEditingCycle(false);
+              }}
+              className="space-y-4"
+            >
+              <div className="space-y-1.5">
+                <label className="font-mono text-[10px] text-[#bbcabf] uppercase tracking-wider block">
+                  Día de inicio del ciclo
+                </label>
+                <select
+                  value={editCycleStartDay}
+                  onChange={(e) => setEditCycleStartDay(e.target.value)}
+                  className="w-full bg-[#171f33]/70 border border-white/10 rounded-xl py-2.5 px-4 font-sans text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#4edea3] focus:border-[#4edea3] transition-all"
+                >
+                  {Array.from({ length: 28 }, (_, index) => {
+                    const day = index + 1;
+                    return (
+                      <option key={day} value={day}>
+                        Día {day}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full bg-gradient-to-r from-[#4edea3] to-[#10b981] text-[#002113] font-sans font-bold text-sm py-3 rounded-xl hover:opacity-90 active:scale-[0.98] transition-all cursor-pointer shadow-[0_0_15px_rgba(78,222,163,0.3)]"
+              >
+                Guardar ciclo
+              </button>
+            </form>
+          </div>
+        </div>
       )}
 
       {isEditingBudgets && onUpdateWeekBudgets && (

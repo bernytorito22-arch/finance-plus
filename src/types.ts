@@ -32,3 +32,48 @@ export interface WeeklyBudgets {
   3: number;
   4: number;
 }
+
+export interface FinanceCycleConfig {
+  monthStartDay: number;
+}
+
+export interface CycleRange {
+  startDate: string;
+  endDate: string;
+  label: string;
+  fileSlug: string;
+}
+
+export type WeekRangeStatus = 'completed' | 'current' | 'upcoming';
+
+export interface WeekRange {
+  week: 1 | 2 | 3 | 4;
+  startDate: string;
+  endDate: string;
+  label: string;
+  status: WeekRangeStatus;
+}
+
+export interface MonthlyExportSummary {
+  totalExpenses: number;
+  remainingBudget: number;
+  byCategory: Record<string, number>;
+  byWeek: Record<string, number>;
+  byPaymentMethod: Record<string, number>;
+  transactionCount: number;
+}
+
+export interface MonthlyExportPayload {
+  exportedAt: string;
+  period: {
+    startDate: string;
+    endDate: string;
+    label: string;
+    monthStartDay: number;
+    weekRanges: WeekRange[];
+  };
+  budget: MonthlyBudget;
+  weekBudgets: WeeklyBudgets;
+  expenses: Expense[];
+  summary: MonthlyExportSummary;
+}

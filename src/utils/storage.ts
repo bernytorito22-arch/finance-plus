@@ -7,8 +7,8 @@ import {
   INITIAL_EXPENSES,
   INITIAL_WEEK_BUDGETS,
 } from "../mockData";
-import { Expense, MonthlyBudget, WeeklyBudgets } from "../types";
-import { getSuggestedWeekOfMonth, WeekNumber } from "./week";
+import { Expense, FinanceCycleConfig, MonthlyBudget, WeeklyBudgets } from "../types";
+import { clampMonthStartDay, getSuggestedWeekOfMonth, WeekNumber } from "./week";
 
 export type DataMode = "demo" | "personal";
 
@@ -17,9 +17,14 @@ export interface UserSnapshot {
   budget: MonthlyBudget;
   weekBudgets: WeeklyBudgets;
   activeWeek: WeekNumber;
+  financeCycleConfig: FinanceCycleConfig;
 }
 
-const STORAGE_VERSION = "3";
+const STORAGE_VERSION = "4";
+
+export const DEFAULT_FINANCE_CYCLE_CONFIG: FinanceCycleConfig = {
+  monthStartDay: 1,
+};
 
 function readJson<T>(key: string): T | null {
   try {
@@ -34,12 +39,24 @@ function writeJson(key: string, value: unknown) {
   localStorage.setItem(key, JSON.stringify(value));
 }
 
+function loadFinanceCycleConfig(): FinanceCycleConfig {
+  const saved = readJson<FinanceCycleConfig>("finanzapro_user_cycle_config");
+  if (!saved || typeof saved.monthStartDay !== "number") {
+    return DEFAULT_FINANCE_CYCLE_CONFIG;
+  }
+
+  return {
+    monthStartDay: clampMonthStartDay(saved.monthStartDay),
+  };
+}
+
 export function getDemoSnapshot(): UserSnapshot {
   return {
     expenses: DEMO_EXPENSES,
     budget: DEMO_BUDGET,
     weekBudgets: DEMO_WEEK_BUDGETS,
     activeWeek: DEMO_ACTIVE_WEEK,
+    financeCycleConfig: DEFAULT_FINANCE_CYCLE_CONFIG,
   };
 }
 
@@ -49,15 +66,20 @@ export function getEmptySnapshot(): UserSnapshot {
     budget: INITIAL_BUDGET,
     weekBudgets: INITIAL_WEEK_BUDGETS,
     activeWeek: getSuggestedWeekOfMonth(),
+    financeCycleConfig: DEFAULT_FINANCE_CYCLE_CONFIG,
   };
 }
 
 export function loadUserSnapshot(): UserSnapshot {
+  const financeCycleConfig = loadFinanceCycleConfig();
+
   return {
     expenses: readJson<Expense[]>("finanzapro_user_expenses") ?? INITIAL_EXPENSES,
     budget: readJson<MonthlyBudget>("finanzapro_user_budget") ?? INITIAL_BUDGET,
     weekBudgets: readJson<WeeklyBudgets>("finanzapro_user_week_budgets") ?? INITIAL_WEEK_BUDGETS,
-    activeWeek: readJson<WeekNumber>("finanzapro_user_active_week") ?? getSuggestedWeekOfMonth(),
+    activeWeek: readJson<WeekNumber>("finanzapro_user_active_week")
+      ?? getSuggestedWeekOfMonth(new Date(), financeCycleConfig.monthStartDay),
+    financeCycleConfig,
   };
 }
 
@@ -66,6 +88,7 @@ function saveUserSnapshot(snapshot: UserSnapshot) {
   writeJson("finanzapro_user_budget", snapshot.budget);
   writeJson("finanzapro_user_week_budgets", snapshot.weekBudgets);
   writeJson("finanzapro_user_active_week", snapshot.activeWeek);
+  writeJson("finanzapro_user_cycle_config", snapshot.financeCycleConfig);
 }
 
 function migrateLegacyStorage(): UserSnapshot | null {
@@ -90,6 +113,7 @@ function migrateLegacyStorage(): UserSnapshot | null {
     budget: legacyBudget ?? INITIAL_BUDGET,
     weekBudgets: legacyWeekBudgets ?? INITIAL_WEEK_BUDGETS,
     activeWeek: legacyActiveWeek ?? getSuggestedWeekOfMonth(),
+    financeCycleConfig: DEFAULT_FINANCE_CYCLE_CONFIG,
   };
 
   saveUserSnapshot(snapshot);
@@ -130,7 +154,8 @@ export function createSnapshot(
   expenses: Expense[],
   budget: MonthlyBudget,
   weekBudgets: WeeklyBudgets,
-  activeWeek: WeekNumber
+  activeWeek: WeekNumber,
+  financeCycleConfig: FinanceCycleConfig
 ): UserSnapshot {
-  return { expenses, budget, weekBudgets, activeWeek };
+  return { expenses, budget, weekBudgets, activeWeek, financeCycleConfig };
 }

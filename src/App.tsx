@@ -4,7 +4,7 @@ import MonthlyDashboard from "./components/MonthlyDashboard";
 import WeeklyTracking from "./components/WeeklyTracking";
 import AddExpense from "./components/AddExpense";
 import AnalysisDetailed from "./components/AnalysisDetailed";
-import { Expense, MonthlyBudget, WeeklyBudgets } from "./types";
+import { Expense, FinanceCycleConfig, MonthlyBudget, WeeklyBudgets } from "./types";
 import { WeekNumber } from "./utils/week";
 import {
   createSnapshot,
@@ -35,6 +35,9 @@ export default function App() {
   const [budget, setBudget] = useState<MonthlyBudget>(initialAppData.snapshot.budget);
   const [weekBudgets, setWeekBudgets] = useState<WeeklyBudgets>(initialAppData.snapshot.weekBudgets);
   const [activeWeek, setActiveWeek] = useState<WeekNumber>(initialAppData.snapshot.activeWeek);
+  const [financeCycleConfig, setFinanceCycleConfig] = useState<FinanceCycleConfig>(
+    initialAppData.snapshot.financeCycleConfig
+  );
 
   const [aiRecommendation, setAiRecommendation] = useState<string>("");
   const [isLoadingAi, setIsLoadingAi] = useState<boolean>(false);
@@ -52,14 +55,15 @@ export default function App() {
   useEffect(() => {
     if (dataMode !== "personal") return;
 
-    persistUserSnapshot(createSnapshot(expenses, budget, weekBudgets, activeWeek));
-  }, [expenses, budget, weekBudgets, activeWeek, dataMode]);
+    persistUserSnapshot(createSnapshot(expenses, budget, weekBudgets, activeWeek, financeCycleConfig));
+  }, [expenses, budget, weekBudgets, activeWeek, financeCycleConfig, dataMode]);
 
   const applySnapshot = (snapshot: ReturnType<typeof getDemoSnapshot>) => {
     setExpenses(snapshot.expenses);
     setBudget(snapshot.budget);
     setWeekBudgets(snapshot.weekBudgets);
     setActiveWeek(snapshot.activeWeek);
+    setFinanceCycleConfig(snapshot.financeCycleConfig);
     setAiRecommendation("");
   };
 
@@ -70,7 +74,7 @@ export default function App() {
       return;
     }
 
-    persistUserSnapshot(createSnapshot(expenses, budget, weekBudgets, activeWeek));
+    persistUserSnapshot(createSnapshot(expenses, budget, weekBudgets, activeWeek, financeCycleConfig));
     setDataMode("demo");
     applySnapshot(getDemoSnapshot());
   };
@@ -164,6 +168,8 @@ export default function App() {
             onUpdateWeekBudgets={setWeekBudgets}
             monthlyBudget={budget.totalBudget}
             onDeleteExpense={handleDeleteExpense}
+            financeCycleConfig={financeCycleConfig}
+            onUpdateFinanceCycleConfig={setFinanceCycleConfig}
           />
         )}
 
@@ -178,11 +184,14 @@ export default function App() {
           <AnalysisDetailed
             expenses={expenses}
             budget={budget}
+            weekBudgets={weekBudgets}
             activeWeek={activeWeek}
             onActiveWeekChange={setActiveWeek}
             aiRecommendation={aiRecommendation}
             onRefreshAi={handleRefreshAi}
             isLoadingAi={isLoadingAi}
+            financeCycleConfig={financeCycleConfig}
+            isDemoMode={isDemoMode}
           />
         )}
       </main>

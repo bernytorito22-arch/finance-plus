@@ -1,17 +1,29 @@
 import { useEffect } from "react";
-import { Expense, MonthlyBudget } from "../types";
+import { Expense, FinanceCycleConfig, MonthlyBudget, WeeklyBudgets } from "../types";
 import { CATEGORIES_CONFIG } from "../mockData";
 import ActiveWeekSelector from "./ActiveWeekSelector";
-import { WeekNumber } from "../utils/week";
+import { buildMonthlyExportPayload, downloadJsonFile } from "../utils/exportMonthlyData";
+import {
+  getFinanceCycleRange,
+  getFinanceWeekRanges,
+  isDateInRange,
+  parseDateOnly,
+  daysBetweenInclusive,
+  startOfDay,
+  WeekNumber,
+} from "../utils/week";
 
 interface AnalysisDetailedProps {
   expenses: Expense[];
   budget: MonthlyBudget;
+  weekBudgets: WeeklyBudgets;
   activeWeek: WeekNumber;
   onActiveWeekChange: (week: WeekNumber) => void;
   aiRecommendation?: string;
   onRefreshAi?: () => void;
   isLoadingAi?: boolean;
+  financeCycleConfig: FinanceCycleConfig;
+  isDemoMode: boolean;
 }
 
 function isSameDay(dateStr: string, ref = new Date()): boolean {
@@ -44,39 +56,49 @@ function formatCurrency(amount: number) {
 export default function AnalysisDetailed({
   expenses,
   budget,
+  weekBudgets,
   activeWeek,
   onActiveWeekChange,
   aiRecommendation,
   onRefreshAi,
   isLoadingAi,
+  financeCycleConfig,
+  isDemoMode,
 }: AnalysisDetailedProps) {
   const now = new Date();
-  const currentMonthName = new Intl.DateTimeFormat("es-ES", { month: "long" })
-    .format(now)
-    .replace(/^\w/, (char) => char.toUpperCase());
-  const dayOfMonth = now.getDate();
-  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const cycleRange = getFinanceCycleRange(now, financeCycleConfig.monthStartDay);
+  const weekRanges = getFinanceWeekRanges(cycleRange, now);
+  const cycleExpenses = expenses.filter((expense) =>
+    isDateInRange(expense.date, cycleRange.startDate, cycleRange.endDate)
+  );
+  const cycleStart = parseDateOnly(cycleRange.startDate);
+  const cycleEnd = parseDateOnly(cycleRange.endDate);
+  const daysInCycle = daysBetweenInclusive(cycleStart, cycleEnd);
+  const dayOfCycle = Math.min(
+    daysInCycle,
+    Math.max(1, daysBetweenInclusive(cycleStart, startOfDay(now)))
+  );
 
-  const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const totalExpenses = cycleExpenses.reduce((sum, expense) => sum + expense.amount, 0);
   const remainingBudget = budget.totalBudget - totalExpenses;
   const budgetPercentage = budget.totalBudget > 0
     ? Math.min(100, Math.round((totalExpenses / budget.totalBudget) * 100))
     : 0;
 
-  const spentToday = expenses
+  const spentToday = cycleExpenses
     .filter((expense) => isSameDay(expense.date, now))
     .reduce((sum, expense) => sum + expense.amount, 0);
 
-  const spentThisWeek = expenses
+  const spentThisWeek = cycleExpenses
     .filter((expense) => expense.week === activeWeek)
     .reduce((sum, expense) => sum + expense.amount, 0);
 
-  const projectedMonthTotal = dayOfMonth > 0 && totalExpenses > 0
-    ? (totalExpenses / dayOfMonth) * daysInMonth
+  const projectedCycleTotal = dayOfCycle > 0 && totalExpenses > 0
+    ? (totalExpenses / dayOfCycle) * daysInCycle
     : 0;
 
   const categoryTotals: Record<string, number> = {};
-  expenses.forEach((expense) => {
+  cycleExpenses.forEach((expense) => {
     categoryTotals[expense.category] = (categoryTotals[expense.category] ?? 0) + expense.amount;
   });
 
@@ -90,11 +112,24 @@ export default function AnalysisDetailed({
       config: CATEGORIES_CONFIG.find((category) => category.name === name),
     }));
 
-  const recentExpenses = [...expenses]
+  const recentExpenses = [...cycleExpenses]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 5);
 
   const hasData = totalExpenses > 0;
+
+  const handleExportCycle = () => {
+    if (isDemoMode) return;
+
+    const payload = buildMonthlyExportPayload({
+      expenses,
+      budget,
+      weekBudgets,
+      financeCycleConfig,
+      referenceDate: now,
+    });
+    downloadJsonFile(payload);
+  };
 
   useEffect(() => {
     if (!aiRecommendation && onRefreshAi && expenses.length > 0) {
@@ -104,12 +139,34 @@ export default function AnalysisDetailed({
 
   return (
     <div className="space-y-6">
-      <section>
-        <h2 className="font-sans text-2xl font-bold text-[#dae2fd] mb-1">Resumen</h2>
-        <p className="text-[#bbcabf] font-sans text-sm">
-          Vista rápida de {currentMonthName}
-        </p>
+      <section className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="font-sans text-2xl font-bold text-[#dae2fd] mb-1">Resumen</h2>
+          <p className="text-[#bbcabf] font-sans text-sm">
+            Vista rápida del ciclo {cycleRange.label}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={handleExportCycle}
+          disabled={isDemoMode}
+          className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-mono font-bold transition-all ${
+            isDemoMode
+              ? "bg-white/5 border-white/10 text-[#bbcabf]/50 cursor-not-allowed"
+              : "bg-[#4edea3]/10 border-[#4edea3]/40 text-[#4edea3] hover:bg-[#4edea3]/20 active:scale-95 cursor-pointer"
+          }`}
+          title={isDemoMode ? "Cambia a Mis datos para exportar" : "Exportar ciclo JSON"}
+        >
+          <span className="material-symbols-outlined text-sm">download</span>
+          Exportar JSON
+        </button>
       </section>
+
+      {isDemoMode && (
+        <p className="font-sans text-xs text-[#bbcabf]/70 -mt-2">
+          Cambia a Mis datos para exportar tu ciclo real.
+        </p>
+      )}
 
       <section className="glass-card rounded-2xl p-5 space-y-4 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 bg-[#4edea3]/5 blur-3xl rounded-full -mr-16 -mt-16 pointer-events-none" />
@@ -117,7 +174,7 @@ export default function AnalysisDetailed({
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="font-mono text-[10px] text-[#bbcabf] uppercase tracking-wider mb-1">
-                Presupuesto del mes
+                Presupuesto del ciclo
               </p>
               <p className="font-sans text-2xl font-extrabold text-[#4edea3]">
                 ${formatCurrency(remainingBudget)}
@@ -151,21 +208,21 @@ export default function AnalysisDetailed({
             </div>
           ) : (
             <p className="font-sans text-xs text-[#bbcabf]/70">
-              Configura tu presupuesto mensual en la pestaña Monthly.
+              Configura tu presupuesto del ciclo en la pestaña Monthly.
             </p>
           )}
 
           {hasData && budget.totalBudget > 0 && (
             <div className="rounded-xl bg-white/5 border border-white/5 p-3">
               <p className="font-mono text-[10px] text-[#bbcabf] uppercase tracking-wider mb-1">
-                Proyección de fin de mes
+                Proyección de fin de ciclo
               </p>
               <p className="font-sans text-xs text-[#bbcabf] leading-relaxed">
-                {projectedMonthTotal <= budget.totalBudget ? (
+                {projectedCycleTotal <= budget.totalBudget ? (
                   <>
-                    Si mantienes este ritmo, terminarás el mes con{" "}
+                    Si mantienes este ritmo, terminarás el ciclo con{" "}
                     <span className="text-[#4edea3] font-bold">
-                      ${formatCurrency(budget.totalBudget - projectedMonthTotal)}
+                      ${formatCurrency(budget.totalBudget - projectedCycleTotal)}
                     </span>{" "}
                     de margen.
                   </>
@@ -173,7 +230,7 @@ export default function AnalysisDetailed({
                   <>
                     Si mantienes este ritmo, podrías superar tu presupuesto en{" "}
                     <span className="text-red-400 font-bold">
-                      ${formatCurrency(projectedMonthTotal - budget.totalBudget)}
+                      ${formatCurrency(projectedCycleTotal - budget.totalBudget)}
                     </span>
                     .
                   </>
@@ -206,12 +263,13 @@ export default function AnalysisDetailed({
             activeWeek={activeWeek}
             onActiveWeekChange={onActiveWeekChange}
             compact
+            weekRanges={weekRanges}
           />
         </div>
       </section>
 
       <section className="glass-card rounded-2xl p-5 space-y-4">
-        <h3 className="font-sans text-md font-bold text-[#dae2fd]">Top categorías del mes</h3>
+        <h3 className="font-sans text-md font-bold text-[#dae2fd]">Top categorías del ciclo</h3>
         {topCategories.length === 0 ? (
           <p className="font-sans text-sm text-[#bbcabf]/70 text-center py-4">
             Sin gastos registrados aún
