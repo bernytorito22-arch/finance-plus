@@ -5,7 +5,8 @@ import WeeklyTracking from "./components/WeeklyTracking";
 import AddExpense from "./components/AddExpense";
 import AnalysisDetailed from "./components/AnalysisDetailed";
 import { Expense, FinanceCycleConfig, MonthlyBudget, WeeklyBudgets } from "./types";
-import { WeekNumber } from "./utils/week";
+import { getFinanceCycleRange, getSuggestedWeekOfMonth, WeekNumber } from "./utils/week";
+import { removeExpensesInCycle } from "./utils/resetCycleData";
 import {
   createSnapshot,
   DataMode,
@@ -131,6 +132,15 @@ export default function App() {
     setExpenses((prev) => prev.filter((e) => e.id !== id));
   };
 
+  const handleResetCycleExpenses = () => {
+    if (dataMode !== "personal") return;
+
+    const cycleRange = getFinanceCycleRange(new Date(), financeCycleConfig.monthStartDay);
+    setExpenses((prev) => removeExpensesInCycle(prev, cycleRange));
+    setActiveWeek(getSuggestedWeekOfMonth(new Date(), financeCycleConfig.monthStartDay));
+    setAiRecommendation("");
+  };
+
   return (
     <div className="min-h-screen bg-[#0b1326] text-[#dae2fd]">
       <Header
@@ -192,6 +202,7 @@ export default function App() {
             isLoadingAi={isLoadingAi}
             financeCycleConfig={financeCycleConfig}
             isDemoMode={isDemoMode}
+            onResetCycleExpenses={handleResetCycleExpenses}
           />
         )}
       </main>
