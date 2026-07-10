@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Expense, FinanceCycleConfig, MonthlyBudget, WeeklyBudgets } from "../types";
 import { CATEGORIES_CONFIG } from "../mockData";
 import ActiveWeekSelector from "./ActiveWeekSelector";
@@ -24,6 +24,7 @@ interface AnalysisDetailedProps {
   isLoadingAi?: boolean;
   financeCycleConfig: FinanceCycleConfig;
   isDemoMode: boolean;
+  onResetCycleExpenses?: () => void;
 }
 
 function isSameDay(dateStr: string, ref = new Date()): boolean {
@@ -64,7 +65,16 @@ export default function AnalysisDetailed({
   isLoadingAi,
   financeCycleConfig,
   isDemoMode,
+  onResetCycleExpenses,
 }: AnalysisDetailedProps) {
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [hasConfirmedExport, setHasConfirmedExport] = useState(false);
+
+  const closeResetModal = () => {
+    setIsResetModalOpen(false);
+    setHasConfirmedExport(false);
+  };
+
   const now = new Date();
   const cycleRange = getFinanceCycleRange(now, financeCycleConfig.monthStartDay);
   const weekRanges = getFinanceWeekRanges(cycleRange, now);
@@ -131,6 +141,12 @@ export default function AnalysisDetailed({
     downloadJsonFile(payload);
   };
 
+  const handleConfirmReset = () => {
+    if (!hasConfirmedExport || isDemoMode) return;
+    onResetCycleExpenses?.();
+    closeResetModal();
+  };
+
   useEffect(() => {
     if (!aiRecommendation && onRefreshAi && expenses.length > 0) {
       onRefreshAi();
@@ -146,26 +162,117 @@ export default function AnalysisDetailed({
             Vista rápida del ciclo {cycleRange.label}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={handleExportCycle}
-          disabled={isDemoMode}
-          className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-mono font-bold transition-all ${
-            isDemoMode
-              ? "bg-white/5 border-white/10 text-[#bbcabf]/50 cursor-not-allowed"
-              : "bg-[#4edea3]/10 border-[#4edea3]/40 text-[#4edea3] hover:bg-[#4edea3]/20 active:scale-95 cursor-pointer"
-          }`}
-          title={isDemoMode ? "Cambia a Mis datos para exportar" : "Exportar ciclo JSON"}
-        >
-          <span className="material-symbols-outlined text-sm">download</span>
-          Exportar JSON
-        </button>
+        <div className="flex shrink-0 flex-col items-end gap-2">
+          <button
+            type="button"
+            onClick={handleExportCycle}
+            disabled={isDemoMode}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-mono font-bold transition-all ${
+              isDemoMode
+                ? "bg-white/5 border-white/10 text-[#bbcabf]/50 cursor-not-allowed"
+                : "bg-[#4edea3]/10 border-[#4edea3]/40 text-[#4edea3] hover:bg-[#4edea3]/20 active:scale-95 cursor-pointer"
+            }`}
+            title={isDemoMode ? "Cambia a Mis datos para exportar" : "Exportar ciclo JSON"}
+          >
+            <span className="material-symbols-outlined text-sm">download</span>
+            Exportar JSON
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsResetModalOpen(true)}
+            disabled={isDemoMode}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-mono font-bold transition-all ${
+              isDemoMode
+                ? "bg-white/5 border-white/10 text-[#bbcabf]/50 cursor-not-allowed"
+                : "bg-red-500/10 border-red-400/40 text-red-300 hover:bg-red-500/20 active:scale-95 cursor-pointer"
+            }`}
+            title={isDemoMode ? "Cambia a Mis datos para reiniciar" : "Reiniciar gastos del ciclo actual"}
+          >
+            <span className="material-symbols-outlined text-sm">restart_alt</span>
+            Reiniciar ciclo
+          </button>
+        </div>
       </section>
 
       {isDemoMode && (
         <p className="font-sans text-xs text-[#bbcabf]/70 -mt-2">
-          Cambia a Mis datos para exportar tu ciclo real.
+          Cambia a Mis datos para exportar o reiniciar tu ciclo real.
         </p>
+      )}
+
+      {isResetModalOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#060e20]/85 backdrop-blur-md"
+          onClick={closeResetModal}
+        >
+          <div
+            className="glass-card w-full max-w-sm rounded-2xl p-6 space-y-5 animate-fade-in relative border border-white/10 shadow-[0_10px_40px_rgba(0,0,0,0.5)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-white/5">
+              <h3 className="font-sans text-lg font-bold text-[#dae2fd] flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-red-300">warning</span>
+                ¿Reiniciar el ciclo?
+              </h3>
+              <button
+                type="button"
+                onClick={closeResetModal}
+                className="text-[#bbcabf] hover:text-white transition-all cursor-pointer w-6 h-6 flex items-center justify-center rounded-lg hover:bg-white/5"
+              >
+                <span className="material-symbols-outlined text-lg">close</span>
+              </button>
+            </div>
+
+            <div className="space-y-3 font-sans text-sm text-[#bbcabf] leading-relaxed">
+              <p>
+                Se borrarán los gastos del ciclo <span className="text-[#dae2fd] font-semibold">{cycleRange.label}</span>.
+              </p>
+              <p>
+                Se eliminarán{" "}
+                <span className="text-[#dae2fd] font-semibold">{cycleExpenses.length}</span>{" "}
+                {cycleExpenses.length === 1 ? "gasto" : "gastos"}.
+              </p>
+              <p>El presupuesto y el ingreso se mantienen.</p>
+              <p className="text-xs text-[#bbcabf]/80">
+                Si quieres guardarlos, exporta el JSON antes de continuar.
+              </p>
+            </div>
+
+            <label className="flex items-start gap-3 cursor-pointer rounded-xl border border-white/10 bg-white/5 p-3">
+              <input
+                type="checkbox"
+                checked={hasConfirmedExport}
+                onChange={(e) => setHasConfirmedExport(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-white/20 bg-[#171f33] text-[#4edea3] focus:ring-[#4edea3] focus:ring-offset-0"
+              />
+              <span className="font-sans text-xs text-[#dae2fd] leading-relaxed">
+                Ya exporté mis datos / entiendo que no podré recuperarlos.
+              </span>
+            </label>
+
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={closeResetModal}
+                className="flex-1 bg-white/5 hover:bg-white/10 border border-white/5 text-[#dae2fd] text-xs font-semibold py-2.5 rounded-xl transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmReset}
+                disabled={!hasConfirmedExport || isDemoMode}
+                className={`flex-1 text-xs font-semibold py-2.5 rounded-xl transition-all ${
+                  !hasConfirmedExport || isDemoMode
+                    ? "bg-red-500/20 border border-red-400/20 text-red-300/50 cursor-not-allowed"
+                    : "bg-red-500/20 hover:bg-red-500/30 border border-red-400/40 text-red-300 active:scale-95 cursor-pointer"
+                }`}
+              >
+                Reiniciar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <section className="glass-card rounded-2xl p-5 space-y-4 relative overflow-hidden">
