@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Expense, FinanceCycleConfig, MonthlyBudget, WeeklyBudgets } from "../types";
+import { Expense, FinanceCycleConfig, MonthlyBudget, WalletSplit, Wallets, WeeklyBudgets } from "../types";
 import { CATEGORIES_CONFIG } from "../mockData";
 import ActiveWeekSelector from "./ActiveWeekSelector";
 import { buildMonthlyExportPayload, downloadJsonFile } from "../utils/exportMonthlyData";
@@ -12,6 +12,7 @@ import {
   startOfDay,
   WeekNumber,
 } from "../utils/week";
+import { getTransactionType } from "../utils/wallet";
 
 interface AnalysisDetailedProps {
   expenses: Expense[];
@@ -25,6 +26,8 @@ interface AnalysisDetailedProps {
   financeCycleConfig: FinanceCycleConfig;
   isDemoMode: boolean;
   onResetCycleExpenses?: () => void;
+  wallets: Wallets;
+  walletSplit: WalletSplit;
 }
 
 function isSameDay(dateStr: string, ref = new Date()): boolean {
@@ -66,6 +69,8 @@ export default function AnalysisDetailed({
   financeCycleConfig,
   isDemoMode,
   onResetCycleExpenses,
+  wallets,
+  walletSplit,
 }: AnalysisDetailedProps) {
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [hasConfirmedExport, setHasConfirmedExport] = useState(false);
@@ -81,6 +86,7 @@ export default function AnalysisDetailed({
   const cycleExpenses = expenses.filter((expense) =>
     isDateInRange(expense.date, cycleRange.startDate, cycleRange.endDate)
   );
+  const cycleGastos = cycleExpenses.filter((expense) => getTransactionType(expense) === "gasto");
   const cycleStart = parseDateOnly(cycleRange.startDate);
   const cycleEnd = parseDateOnly(cycleRange.endDate);
   const daysInCycle = daysBetweenInclusive(cycleStart, cycleEnd);
@@ -89,17 +95,17 @@ export default function AnalysisDetailed({
     Math.max(1, daysBetweenInclusive(cycleStart, startOfDay(now)))
   );
 
-  const totalExpenses = cycleExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const totalExpenses = cycleGastos.reduce((sum, expense) => sum + expense.amount, 0);
   const remainingBudget = budget.totalBudget - totalExpenses;
   const budgetPercentage = budget.totalBudget > 0
     ? Math.min(100, Math.round((totalExpenses / budget.totalBudget) * 100))
     : 0;
 
-  const spentToday = cycleExpenses
+  const spentToday = cycleGastos
     .filter((expense) => isSameDay(expense.date, now))
     .reduce((sum, expense) => sum + expense.amount, 0);
 
-  const spentThisWeek = cycleExpenses
+  const spentThisWeek = cycleGastos
     .filter((expense) => expense.week === activeWeek)
     .reduce((sum, expense) => sum + expense.amount, 0);
 
@@ -108,7 +114,7 @@ export default function AnalysisDetailed({
     : 0;
 
   const categoryTotals: Record<string, number> = {};
-  cycleExpenses.forEach((expense) => {
+  cycleGastos.forEach((expense) => {
     categoryTotals[expense.category] = (categoryTotals[expense.category] ?? 0) + expense.amount;
   });
 
@@ -136,6 +142,8 @@ export default function AnalysisDetailed({
       budget,
       weekBudgets,
       financeCycleConfig,
+      wallets,
+      walletSplit,
       referenceDate: now,
     });
     downloadJsonFile(payload);

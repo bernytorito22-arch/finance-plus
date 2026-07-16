@@ -1,14 +1,23 @@
 import React, { useState, useEffect } from "react";
 import { CATEGORIES_CONFIG } from "../mockData";
-import { Expense, PaymentMethod } from "../types";
+import { Expense, PaymentMethod, TransactionType, Wallets } from "../types";
 import { WeekNumber } from "../utils/week";
+import { canAfford } from "../utils/wallet";
+import { MutationResult } from "../types";
 
 interface AddExpenseProps {
-  onSaveExpense: (expense: Omit<Expense, "id" | "date" | "status"> & { date?: string; status?: "Completado" | "Rechazado" }) => void;
+  onSaveExpense: (
+    expense: Omit<Expense, "id" | "date" | "status"> & {
+      date?: string;
+      status?: "Completado" | "Rechazado";
+    }
+  ) => MutationResult;
   activeWeek?: WeekNumber;
+  wallets: Wallets;
 }
 
-export default function AddExpense({ onSaveExpense, activeWeek = 1 }: AddExpenseProps) {
+export default function AddExpense({ onSaveExpense, activeWeek = 1, wallets }: AddExpenseProps) {
+  const [entryType, setEntryType] = useState<TransactionType>("gasto");
   const [amount, setAmount] = useState<string>("");
   const [name, setName] = useState<string>("");
   const [category, setCategory] = useState<string>("Seleccionar categoría");
@@ -33,7 +42,7 @@ export default function AddExpense({ onSaveExpense, activeWeek = 1 }: AddExpense
       return;
     }
 
-    if (!name.trim()) {
+    if (entryType === "gasto" && !name.trim()) {
       setToastMessage("El nombre del gasto es requerido.");
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
@@ -42,16 +51,30 @@ export default function AddExpense({ onSaveExpense, activeWeek = 1 }: AddExpense
 
     const catToSave = category === "Seleccionar categoría" ? "Otros" : category;
 
-    // Trigger save callback
-    onSaveExpense({
-      name: name.trim(),
+    if (entryType === "gasto" && !canAfford(wallets, paymentMethod, numericAmount)) {
+      setToastMessage(`No tienes suficiente saldo en ${paymentMethod}.`);
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+      return;
+    }
+
+    const result = onSaveExpense({
+      type: entryType,
+      name: entryType === "ingreso" ? (name.trim() || "Ingreso") : name.trim(),
       amount: numericAmount,
-      category: catToSave,
+      category: entryType === "ingreso" ? "Ingreso" : catToSave,
       description: description.trim(),
       week: selectedWeek,
       paymentMethod,
-      date: new Date().toISOString()
+      date: new Date().toISOString(),
     });
+
+    if (result.ok === false) {
+      setToastMessage(result.error);
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+      return;
+    }
 
     // Clear form and show success
     setAmount("");
@@ -61,7 +84,7 @@ export default function AddExpense({ onSaveExpense, activeWeek = 1 }: AddExpense
     setSelectedWeek(activeWeek);
     setPaymentMethod("efectivo");
 
-    setToastMessage("¡Gasto guardado exitosamente!");
+    setToastMessage(entryType === "ingreso" ? "¡Ingreso guardado exitosamente!" : "¡Gasto guardado exitosamente!");
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
   };
@@ -78,8 +101,31 @@ export default function AddExpense({ onSaveExpense, activeWeek = 1 }: AddExpense
 
       {/* Hero Section */}
       <div>
-        <h2 className="font-sans text-2xl font-bold text-[#dae2fd] mb-1">Añadir Gasto</h2>
-        <p className="text-[#bbcabf] font-sans text-sm">Registra tus movimientos financieros con precisión.</p>
+        <h2 className="font-sans text-2xl font-bold text-[#dae2fd] mb-1">
+          {entryType === "gasto" ? "Añadir Gasto" : "Añadir Ingreso"}
+        </h2>
+        <p className="text-[#bbcabf] font-sans text-sm">
+          {entryType === "gasto"
+            ? "Registra tus movimientos financieros con precisión."
+            : "Agrega dinero a tarjeta o efectivo sin afectar el presupuesto."}
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        {(["gasto", "ingreso"] as TransactionType[]).map((type) => (
+          <button
+            key={type}
+            type="button"
+            onClick={() => setEntryType(type)}
+            className={`py-2.5 px-3 rounded-xl font-sans text-sm border transition-all cursor-pointer capitalize ${
+              entryType === type
+                ? "bg-[#4edea3]/10 border-[#4edea3] text-[#4edea3]"
+                : "bg-[#060e20] border-[#3c4a42] text-[#bbcabf] hover:border-[#bbcabf]/30"
+            }`}
+          >
+            {type === "gasto" ? "Gasto" : "Ingreso"}
+          </button>
+        ))}
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -87,7 +133,7 @@ export default function AddExpense({ onSaveExpense, activeWeek = 1 }: AddExpense
         <div className="glass-card rounded-2xl p-6 flex flex-col items-center justify-center relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-1 primary-gradient"></div>
           <label className="font-mono text-xs text-[#bbcabf] uppercase tracking-wider mb-2 select-none">
-            Monto del Gasto
+            {entryType === "gasto" ? "Monto del Gasto" : "Monto del Ingreso"}
           </label>
           <div className="flex items-baseline justify-center w-full max-w-[240px]">
             <span className="text-[#4edea3] font-sans text-5xl font-bold mr-1 select-none">$</span>
@@ -115,7 +161,7 @@ export default function AddExpense({ onSaveExpense, activeWeek = 1 }: AddExpense
           {/* Expense Name */}
           <div className="flex flex-col gap-1.5">
             <label className="font-sans text-sm font-semibold text-[#dae2fd] ml-1">
-              Nombre del gasto *
+              {entryType === "gasto" ? "Nombre del gasto *" : "Nombre (opcional)"}
             </label>
             <div className="relative">
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#bbcabf] text-xl select-none">
@@ -124,15 +170,15 @@ export default function AddExpense({ onSaveExpense, activeWeek = 1 }: AddExpense
               <input
                 type="text"
                 className="w-full bg-[#060e20] border border-[#3c4a42] rounded-xl py-3 pl-11 pr-4 text-sm text-[#dae2fd] transition-all focus:border-[#4edea3] focus:ring-1 focus:ring-[#4edea3]/20"
-                placeholder="Ej. Supermercado, Alquiler, Restaurante..."
+                placeholder={entryType === "gasto" ? "Ej. Supermercado, Alquiler, Restaurante..." : "Ej. Quincena, Transferencia..."}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                required
+                required={entryType === "gasto"}
               />
             </div>
           </div>
 
-          {/* Dynamic Category Selector */}
+          {entryType === "gasto" && (
           <div className="flex flex-col gap-1.5">
             <label className="font-sans text-sm font-semibold text-[#dae2fd] ml-1">
               Categoría
@@ -158,11 +204,12 @@ export default function AddExpense({ onSaveExpense, activeWeek = 1 }: AddExpense
               </span>
             </div>
           </div>
+          )}
 
           {/* Payment Method */}
           <div className="flex flex-col gap-1.5">
             <label className="font-sans text-sm font-semibold text-[#dae2fd] ml-1">
-              Método de pago
+              {entryType === "gasto" ? "Método de pago" : "Destino"}
             </label>
             <div className="grid grid-cols-2 gap-2">
               {([
@@ -188,7 +235,7 @@ export default function AddExpense({ onSaveExpense, activeWeek = 1 }: AddExpense
             </div>
           </div>
 
-          {/* Week Selector */}
+          {entryType === "gasto" && (
           <div className="flex flex-col gap-1.5">
             <label className="font-sans text-sm font-semibold text-[#dae2fd] ml-1">
               Semana de Registro
@@ -210,6 +257,7 @@ export default function AddExpense({ onSaveExpense, activeWeek = 1 }: AddExpense
               ))}
             </div>
           </div>
+          )}
 
           {/* Description */}
           <div className="flex flex-col gap-1.5">
@@ -238,7 +286,7 @@ export default function AddExpense({ onSaveExpense, activeWeek = 1 }: AddExpense
             className="w-full primary-gradient text-[#003824] font-sans font-bold py-4 rounded-2xl shadow-[0_8px_24px_rgba(78,222,163,0.2)] hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer text-base"
           >
             <span className="material-symbols-outlined font-black">check_circle</span>
-            Guardar Gasto
+            {entryType === "gasto" ? "Guardar Gasto" : "Guardar Ingreso"}
           </button>
           <p className="text-center mt-3 font-mono text-xs text-[#bbcabf]">
             Los datos se cifran localmente antes de sincronizarse.

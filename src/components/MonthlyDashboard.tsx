@@ -1,21 +1,37 @@
 import { useState } from "react";
-import { Expense, MonthlyBudget } from "../types";
+import { Expense, MonthlyBudget, PaymentMethod, WalletSplit, Wallets } from "../types";
 import { CATEGORIES_CONFIG } from "../mockData";
+import { isValidSplit, getTransactionType } from "../utils/wallet";
 
 interface MonthlyDashboardProps {
   expenses: Expense[];
   budget: MonthlyBudget;
-  onUpdateBudget?: (budget: MonthlyBudget) => void;
+  wallets: Wallets;
+  walletSplit: WalletSplit;
+  onUpdateBudgetConfig?: (payload: { budget: MonthlyBudget; walletSplit: WalletSplit }) => void;
+  onUpdateWallets?: (wallets: Wallets) => void;
 }
 
-export default function MonthlyDashboard({ expenses, budget, onUpdateBudget }: MonthlyDashboardProps) {
+export default function MonthlyDashboard({
+  expenses,
+  budget,
+  wallets,
+  walletSplit,
+  onUpdateBudgetConfig,
+  onUpdateWallets,
+}: MonthlyDashboardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editTotalBudget, setEditTotalBudget] = useState("");
   const [editIncome, setEditIncome] = useState("");
+  const [editSplitTarjeta, setEditSplitTarjeta] = useState("");
+  const [editSplitEfectivo, setEditSplitEfectivo] = useState("");
+  const [splitError, setSplitError] = useState("");
+  const [editingWallet, setEditingWallet] = useState<PaymentMethod | null>(null);
+  const [editWalletAmount, setEditWalletAmount] = useState("");
 
-  // Calculations
+  const expenseOnly = expenses.filter((e) => getTransactionType(e) === "gasto");
   const totalIncome = budget.income;
-  const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+  const totalExpenses = expenseOnly.reduce((sum, exp) => sum + exp.amount, 0);
   const remainingBudget = budget.totalBudget - totalExpenses;
   const budgetPercentage = budget.totalBudget > 0
     ? Math.min(100, Math.round((totalExpenses / budget.totalBudget) * 100))
@@ -27,6 +43,7 @@ export default function MonthlyDashboard({ expenses, budget, onUpdateBudget }: M
   // Category percentage calculation
   const categoryTotals: Record<string, number> = {};
   expenses.forEach((e) => {
+    if (getTransactionType(e) !== "gasto") return;
     categoryTotals[e.category] = (categoryTotals[e.category] || 0) + e.amount;
   });
 
@@ -60,10 +77,10 @@ export default function MonthlyDashboard({ expenses, budget, onUpdateBudget }: M
       };
     });
 
-  const cashTotal = expenses
+  const cashTotal = expenseOnly
     .filter((e) => (e.paymentMethod ?? "efectivo") === "efectivo")
     .reduce((sum, e) => sum + e.amount, 0);
-  const cardTotal = expenses
+  const cardTotal = expenseOnly
     .filter((e) => e.paymentMethod === "tarjeta")
     .reduce((sum, e) => sum + e.amount, 0);
   const paymentTotal = cashTotal + cardTotal;
@@ -83,11 +100,14 @@ export default function MonthlyDashboard({ expenses, budget, onUpdateBudget }: M
           <h2 className="font-sans text-4xl sm:text-5xl font-extrabold text-[#4edea3] tracking-tight pl-6">
             ${remainingBudget.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </h2>
-          {onUpdateBudget && (
+          {onUpdateBudgetConfig && (
             <button 
               onClick={() => {
                 setEditTotalBudget(budget.totalBudget.toString());
                 setEditIncome(budget.income.toString());
+                setEditSplitTarjeta(walletSplit.tarjeta.toString());
+                setEditSplitEfectivo(walletSplit.efectivo.toString());
+                setSplitError("");
                 setIsEditing(true);
               }}
               className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 text-[#4edea3] flex items-center justify-center border border-white/5 transition-all cursor-pointer"
@@ -126,6 +146,52 @@ export default function MonthlyDashboard({ expenses, budget, onUpdateBudget }: M
             ></div>
           </div>
         </div>
+      </section>
+
+      <section className="glass-card rounded-2xl p-4 sm:p-5 space-y-3">
+        <button
+          type="button"
+          onClick={() => {
+            setEditingWallet("tarjeta");
+            setEditWalletAmount(wallets.tarjeta.toString());
+          }}
+          className="flex items-center justify-between w-full text-left hover:bg-white/5 rounded-xl p-2 -m-2 transition-colors cursor-pointer"
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="material-symbols-outlined text-[#adc6ff] text-lg">credit_card</span>
+            <span className="font-mono text-[11px] text-[#bbcabf] uppercase tracking-wide">Tarjeta</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="font-sans text-base font-bold text-[#adc6ff]">
+              ${wallets.tarjeta.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+            {onUpdateWallets && (
+              <span className="material-symbols-outlined text-sm text-[#bbcabf]">edit</span>
+            )}
+          </div>
+        </button>
+        <div className="h-px bg-white/10" />
+        <button
+          type="button"
+          onClick={() => {
+            setEditingWallet("efectivo");
+            setEditWalletAmount(wallets.efectivo.toString());
+          }}
+          className="flex items-center justify-between w-full text-left hover:bg-white/5 rounded-xl p-2 -m-2 transition-colors cursor-pointer"
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="material-symbols-outlined text-[#4edea3] text-lg">payments</span>
+            <span className="font-mono text-[11px] text-[#bbcabf] uppercase tracking-wide">Efectivo</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="font-sans text-base font-bold text-[#4edea3]">
+              ${wallets.efectivo.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+            {onUpdateWallets && (
+              <span className="material-symbols-outlined text-sm text-[#bbcabf]">edit</span>
+            )}
+          </div>
+        </button>
       </section>
 
       {/* Circular Expense Distribution Graph */}
@@ -355,20 +421,31 @@ export default function MonthlyDashboard({ expenses, budget, onUpdateBudget }: M
             </div>
 
             <p className="font-sans text-xs text-[#bbcabf] leading-relaxed">
-              Define tu presupuesto límite de gastos permitidos para el mes actual e introduce tus ingresos mensuales estimados.
+              Define tu presupuesto límite e ingresos del mes. El reparto tarjeta/efectivo se usa al iniciar (saldos en 0) o al reiniciar el ciclo.
             </p>
 
             <form onSubmit={(e) => {
               e.preventDefault();
               const numBudget = parseFloat(editTotalBudget);
               const numIncome = parseFloat(editIncome);
-              if (!isNaN(numBudget) && !isNaN(numIncome) && onUpdateBudget) {
-                onUpdateBudget({
-                  totalBudget: numBudget,
-                  income: numIncome
-                });
-                setIsEditing(false);
+              const numTarjeta = parseFloat(editSplitTarjeta);
+              const numEfectivo = parseFloat(editSplitEfectivo);
+              if (isNaN(numBudget) || isNaN(numIncome) || isNaN(numTarjeta) || isNaN(numEfectivo) || !onUpdateBudgetConfig) {
+                return;
               }
+
+              const nextSplit = { tarjeta: numTarjeta, efectivo: numEfectivo };
+              if (!isValidSplit(nextSplit, numIncome)) {
+                setSplitError("Tarjeta + efectivo debe sumar el ingreso del mes.");
+                return;
+              }
+
+              onUpdateBudgetConfig({
+                budget: { totalBudget: numBudget, income: numIncome },
+                walletSplit: nextSplit,
+              });
+              setSplitError("");
+              setIsEditing(false);
             }} className="space-y-4">
               <div className="space-y-1.5">
                 <label className="font-mono text-[10px] text-[#bbcabf] uppercase tracking-wider block">Presupuesto Máximo Mensual</label>
@@ -400,6 +477,43 @@ export default function MonthlyDashboard({ expenses, budget, onUpdateBudget }: M
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="font-mono text-[10px] text-[#bbcabf] uppercase tracking-wider block">Tarjeta</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 font-sans text-sm text-[#bbcabf] select-none">$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      required
+                      value={editSplitTarjeta}
+                      onChange={(e) => setEditSplitTarjeta(e.target.value)}
+                      className="w-full bg-[#171f33]/70 border border-white/10 rounded-xl py-2.5 pl-8 pr-4 font-sans text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#4edea3] focus:border-[#4edea3] transition-all"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="font-mono text-[10px] text-[#bbcabf] uppercase tracking-wider block">Efectivo</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 font-sans text-sm text-[#bbcabf] select-none">$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      required
+                      value={editSplitEfectivo}
+                      onChange={(e) => setEditSplitEfectivo(e.target.value)}
+                      className="w-full bg-[#171f33]/70 border border-white/10 rounded-xl py-2.5 pl-8 pr-4 font-sans text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#4edea3] focus:border-[#4edea3] transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {splitError && (
+                <p className="font-sans text-xs text-red-400">{splitError}</p>
+              )}
+
               <div className="flex gap-2 pt-2">
                 <button 
                   type="button"
@@ -409,6 +523,54 @@ export default function MonthlyDashboard({ expenses, budget, onUpdateBudget }: M
                   Cancelar
                 </button>
                 <button 
+                  type="submit"
+                  className="flex-1 bg-gradient-to-br from-[#4edea3] to-[#10b981] hover:brightness-105 active:scale-[0.98] text-[#002113] text-xs font-bold py-2.5 rounded-xl shadow-[0_4px_12px_rgba(78,222,163,0.3)] transition-all cursor-pointer"
+                >
+                  Guardar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {editingWallet && onUpdateWallets && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#060e20]/85 backdrop-blur-md">
+          <div className="glass-card w-full max-w-sm rounded-2xl p-6 space-y-5 animate-fade-in relative border border-white/10 shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+            <h3 className="font-sans text-lg font-bold text-[#dae2fd]">
+              Ajustar saldo — {editingWallet === "tarjeta" ? "Tarjeta" : "Efectivo"}
+            </h3>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const amount = parseFloat(editWalletAmount);
+                if (isNaN(amount) || amount < 0) return;
+                onUpdateWallets({ ...wallets, [editingWallet]: amount });
+                setEditingWallet(null);
+              }}
+              className="space-y-4"
+            >
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 font-sans text-sm text-[#bbcabf] select-none">$</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  required
+                  value={editWalletAmount}
+                  onChange={(e) => setEditWalletAmount(e.target.value)}
+                  className="w-full bg-[#171f33]/70 border border-white/10 rounded-xl py-2.5 pl-8 pr-4 font-sans text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#4edea3] focus:border-[#4edea3] transition-all"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingWallet(null)}
+                  className="flex-1 bg-white/5 hover:bg-white/10 border border-white/5 text-[#dae2fd] text-xs font-semibold py-2.5 rounded-xl transition-all cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
                   type="submit"
                   className="flex-1 bg-gradient-to-br from-[#4edea3] to-[#10b981] hover:brightness-105 active:scale-[0.98] text-[#002113] text-xs font-bold py-2.5 rounded-xl shadow-[0_4px_12px_rgba(78,222,163,0.3)] transition-all cursor-pointer"
                 >

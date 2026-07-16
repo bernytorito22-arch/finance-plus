@@ -2,6 +2,8 @@ import {
   Expense,
   FinanceCycleConfig,
   MonthlyBudget,
+  WalletSplit,
+  Wallets,
   MonthlyExportPayload,
   WeeklyBudgets,
 } from "../types";
@@ -10,12 +12,15 @@ import {
   getFinanceWeekRanges,
   isDateInRange,
 } from "./week";
+import { getTransactionType } from "./wallet";
 
 interface BuildMonthlyExportInput {
   expenses: Expense[];
   budget: MonthlyBudget;
   weekBudgets: WeeklyBudgets;
   financeCycleConfig: FinanceCycleConfig;
+  wallets: Wallets;
+  walletSplit: WalletSplit;
   referenceDate?: Date;
 }
 
@@ -36,6 +41,8 @@ export function buildMonthlyExportPayload({
   budget,
   weekBudgets,
   financeCycleConfig,
+  wallets,
+  walletSplit,
   referenceDate = new Date(),
 }: BuildMonthlyExportInput): MonthlyExportPayload {
   const cycleRange = getFinanceCycleRange(referenceDate, financeCycleConfig.monthStartDay);
@@ -44,6 +51,7 @@ export function buildMonthlyExportPayload({
   const cycleExpenses = expenses.filter((expense) =>
     isDateInRange(expense.date, cycleRange.startDate, cycleRange.endDate)
   );
+  const cycleGastos = cycleExpenses.filter((expense) => getTransactionType(expense) === "gasto");
 
   const byCategory: Record<string, number> = {};
   const byWeek: Record<string, number> = {};
@@ -51,7 +59,7 @@ export function buildMonthlyExportPayload({
 
   let totalExpenses = 0;
 
-  for (const expense of cycleExpenses) {
+  for (const expense of cycleGastos) {
     totalExpenses += expense.amount;
     byCategory[expense.category] = (byCategory[expense.category] ?? 0) + expense.amount;
 
@@ -73,6 +81,8 @@ export function buildMonthlyExportPayload({
     },
     budget,
     weekBudgets,
+    wallets,
+    walletSplit,
     expenses: cycleExpenses,
     summary: {
       totalExpenses,
@@ -80,7 +90,7 @@ export function buildMonthlyExportPayload({
       byCategory,
       byWeek,
       byPaymentMethod,
-      transactionCount: cycleExpenses.length,
+      transactionCount: cycleGastos.length,
     },
   };
 }

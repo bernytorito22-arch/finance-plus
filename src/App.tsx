@@ -4,9 +4,15 @@ import MonthlyDashboard from "./components/MonthlyDashboard";
 import WeeklyTracking from "./components/WeeklyTracking";
 import AddExpense from "./components/AddExpense";
 import AnalysisDetailed from "./components/AnalysisDetailed";
-import { Expense, FinanceCycleConfig, MonthlyBudget, WeeklyBudgets } from "./types";
+import { Expense, FinanceCycleConfig, MonthlyBudget, MutationResult, WalletSplit, Wallets, WeeklyBudgets } from "./types";
 import { getFinanceCycleRange, getSuggestedWeekOfMonth, WeekNumber } from "./utils/week";
 import { removeExpensesInCycle } from "./utils/resetCycleData";
+import {
+  applyEdit,
+  applyTransaction,
+  initWalletsFromSplit,
+  revertTransaction,
+} from "./utils/wallet";
 import {
   createSnapshot,
   DataMode,
@@ -20,6 +26,10 @@ import {
 type ActiveTab = "monthly" | "weekly" | "add" | "analysis";
 
 const initialAppData = initializeAppData();
+
+function walletsAreEmpty(wallets: Wallets): boolean {
+  return wallets.tarjeta === 0 && wallets.efectivo === 0;
+}
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>(() => {
@@ -39,6 +49,8 @@ export default function App() {
   const [financeCycleConfig, setFinanceCycleConfig] = useState<FinanceCycleConfig>(
     initialAppData.snapshot.financeCycleConfig
   );
+  const [wallets, setWallets] = useState<Wallets>(initialAppData.snapshot.wallets);
+  const [walletSplit, setWalletSplit] = useState<WalletSplit>(initialAppData.snapshot.walletSplit);
 
   const [aiRecommendation, setAiRecommendation] = useState<string>("");
   const [isLoadingAi, setIsLoadingAi] = useState<boolean>(false);
@@ -56,8 +68,18 @@ export default function App() {
   useEffect(() => {
     if (dataMode !== "personal") return;
 
-    persistUserSnapshot(createSnapshot(expenses, budget, weekBudgets, activeWeek, financeCycleConfig));
-  }, [expenses, budget, weekBudgets, activeWeek, financeCycleConfig, dataMode]);
+    persistUserSnapshot(
+      createSnapshot(
+        expenses,
+        budget,
+        weekBudgets,
+        activeWeek,
+        financeCycleConfig,
+        wallets,
+        walletSplit
+      )
+    );
+  }, [expenses, budget, weekBudgets, activeWeek, financeCycleConfig, wallets, walletSplit, dataMode]);
 
   const applySnapshot = (snapshot: ReturnType<typeof getDemoSnapshot>) => {
     setExpenses(snapshot.expenses);
@@ -65,6 +87,8 @@ export default function App() {
     setWeekBudgets(snapshot.weekBudgets);
     setActiveWeek(snapshot.activeWeek);
     setFinanceCycleConfig(snapshot.financeCycleConfig);
+    setWallets(snapshot.wallets);
+    setWalletSplit(snapshot.walletSplit);
     setAiRecommendation("");
   };
 
@@ -75,7 +99,17 @@ export default function App() {
       return;
     }
 
-    persistUserSnapshot(createSnapshot(expenses, budget, weekBudgets, activeWeek, financeCycleConfig));
+    persistUserSnapshot(
+      createSnapshot(
+        expenses,
+        budget,
+        weekBudgets,
+        activeWeek,
+        financeCycleConfig,
+        wallets,
+        walletSplit
+      )
+    );
     setDataMode("demo");
     applySnapshot(getDemoSnapshot());
   };
@@ -113,23 +147,91 @@ export default function App() {
     }
   };
 
-  const handleSaveExpense = (newExpense: Omit<Expense, "id" | "date" | "status"> & { date?: string; status?: "Completado" | "Rechazado" }) => {
+  const handleSaveExpense = (
+    newExpense: Omit<Expense, "id" | "date" | "status"> & {
+      date?: string;
+      status?: "Completado" | "Rechazado";
+    }
+  ): MutationResult => {
     const expenseWithId: Expense = {
       ...newExpense,
+      type: newExpense.type ?? "gasto",
       id: `exp_${Date.now()}`,
       date: newExpense.date || new Date().toISOString(),
       status: newExpense.status || "Completado",
     };
 
+    const nextWallets = applyTransaction(wallets, expenseWithId);
+    if (!nextWallets) {
+      const method = expenseWithId.paymentMethod ?? "efectivo";
+      return {
+        ok: false,
+        error: `No tienes suficiente saldo en ${method}.`,
+      };
+    }
+
+    setWallets(nextWallets);
     setExpenses((prev) => [expenseWithId, ...prev]);
 
     setTimeout(() => {
       setActiveTab("weekly");
     }, 1200);
+
+    return { ok: true };
   };
 
-  const handleDeleteExpense = (id: string) => {
+  const handleDeleteExpense = (id: string): MutationResult => {
+    const expense = expenses.find((e) => e.id === id);
+    if (!expense) {
+      return { ok: false, error: "No se encontró la transacción." };
+    }
+
+    const nextWallets = revertTransaction(wallets, expense);
+    if (!nextWallets) {
+      return {
+        ok: false,
+        error: "No se puede eliminar: el saldo quedaría negativo. Ajusta el saldo manualmente primero.",
+      };
+    }
+
+    setWallets(nextWallets);
     setExpenses((prev) => prev.filter((e) => e.id !== id));
+    return { ok: true };
+  };
+
+  const handleUpdateBudgetConfig = (payload: {
+    budget: MonthlyBudget;
+    walletSplit: WalletSplit;
+  }) => {
+    setBudget(payload.budget);
+    setWalletSplit(payload.walletSplit);
+
+    if (walletsAreEmpty(wallets)) {
+      setWallets(initWalletsFromSplit(payload.walletSplit));
+    }
+  };
+
+  const handleUpdateWallets = (nextWallets: Wallets) => {
+    setWallets(nextWallets);
+  };
+
+  const handleUpdateExpense = (updated: Expense): MutationResult => {
+    const original = expenses.find((e) => e.id === updated.id);
+    if (!original) {
+      return { ok: false, error: "No se encontró la transacción." };
+    }
+
+    const nextWallets = applyEdit(wallets, original, updated);
+    if (!nextWallets) {
+      return {
+        ok: false,
+        error: "No hay saldo suficiente para guardar estos cambios.",
+      };
+    }
+
+    setWallets(nextWallets);
+    setExpenses((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+    return { ok: true };
   };
 
   const handleResetCycleExpenses = () => {
@@ -137,6 +239,7 @@ export default function App() {
 
     const cycleRange = getFinanceCycleRange(new Date(), financeCycleConfig.monthStartDay);
     setExpenses((prev) => removeExpensesInCycle(prev, cycleRange));
+    setWallets(initWalletsFromSplit(walletSplit));
     setActiveWeek(getSuggestedWeekOfMonth(new Date(), financeCycleConfig.monthStartDay));
     setAiRecommendation("");
   };
@@ -165,7 +268,10 @@ export default function App() {
           <MonthlyDashboard
             expenses={expenses}
             budget={budget}
-            onUpdateBudget={setBudget}
+            wallets={wallets}
+            walletSplit={walletSplit}
+            onUpdateBudgetConfig={handleUpdateBudgetConfig}
+            onUpdateWallets={handleUpdateWallets}
           />
         )}
 
@@ -178,6 +284,7 @@ export default function App() {
             onUpdateWeekBudgets={setWeekBudgets}
             monthlyBudget={budget.totalBudget}
             onDeleteExpense={handleDeleteExpense}
+            onUpdateExpense={handleUpdateExpense}
             financeCycleConfig={financeCycleConfig}
             onUpdateFinanceCycleConfig={setFinanceCycleConfig}
           />
@@ -187,6 +294,7 @@ export default function App() {
           <AddExpense
             onSaveExpense={handleSaveExpense}
             activeWeek={activeWeek}
+            wallets={wallets}
           />
         )}
 
@@ -203,6 +311,8 @@ export default function App() {
             financeCycleConfig={financeCycleConfig}
             isDemoMode={isDemoMode}
             onResetCycleExpenses={handleResetCycleExpenses}
+            wallets={wallets}
+            walletSplit={walletSplit}
           />
         )}
       </main>
