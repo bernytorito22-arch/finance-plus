@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { Expense, FinanceCycleConfig, WeeklyBudgets } from "../types";
+import { Expense, FinanceCycleConfig, MutationResult, WeeklyBudgets } from "../types";
 import { CATEGORIES_CONFIG } from "../mockData";
 import ActiveWeekSelector from "./ActiveWeekSelector";
+import TransactionDetailModal from "./TransactionDetailModal";
 import {
   clampMonthStartDay,
   getCurrentWeekRange,
@@ -10,6 +11,7 @@ import {
   getFinanceWeekRanges,
   WeekNumber,
 } from "../utils/week";
+import { getTransactionType } from "../utils/wallet";
 
 interface WeeklyTrackingProps {
   expenses: Expense[];
@@ -18,7 +20,8 @@ interface WeeklyTrackingProps {
   onActiveWeekChange: (week: WeekNumber) => void;
   onUpdateWeekBudgets?: (budgets: WeeklyBudgets) => void;
   monthlyBudget?: number;
-  onDeleteExpense?: (id: string) => void;
+  onDeleteExpense?: (id: string) => MutationResult;
+  onUpdateExpense?: (expense: Expense) => MutationResult;
   financeCycleConfig: FinanceCycleConfig;
   onUpdateFinanceCycleConfig: (config: FinanceCycleConfig) => void;
 }
@@ -31,11 +34,14 @@ export default function WeeklyTracking({
   onUpdateWeekBudgets,
   monthlyBudget = 0,
   onDeleteExpense,
+  onUpdateExpense,
   financeCycleConfig,
   onUpdateFinanceCycleConfig,
 }: WeeklyTrackingProps) {
   const [selectedWeek, setSelectedWeek] = useState<number>(activeWeek);
   const [expandedDescriptionId, setExpandedDescriptionId] = useState<string | null>(null);
+  const [selectedTransaction, setSelectedTransaction] = useState<Expense | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isEditingBudgets, setIsEditingBudgets] = useState(false);
   const [isEditingCycle, setIsEditingCycle] = useState(false);
   const [editCycleStartDay, setEditCycleStartDay] = useState(
@@ -71,7 +77,7 @@ export default function WeeklyTracking({
   // Calculate stats per week
   const calculateWeekSpent = (weekNum: number) => {
     return expenses
-      .filter((e) => e.week === weekNum)
+      .filter((e) => e.week === weekNum && getTransactionType(e) === "gasto")
       .reduce((sum, e) => sum + e.amount, 0);
   };
 
@@ -80,6 +86,7 @@ export default function WeeklyTracking({
   const weekBudget = weekBudgets[selectedWeek];
 
   const categoryTotals = weekExpenses.reduce<Record<string, number>>((acc, expense) => {
+    if (getTransactionType(expense) !== "gasto") return acc;
     acc[expense.category] = (acc[expense.category] ?? 0) + expense.amount;
     return acc;
   }, {});
@@ -276,29 +283,30 @@ export default function WeeklyTracking({
         ) : (
           <div className="glass-card rounded-2xl overflow-hidden divide-y divide-white/5">
             {weekExpenses.map((expense) => {
-              // Retrieve configured style icons
-              const config = CATEGORIES_CONFIG.find((c) => c.name === expense.category) || CATEGORIES_CONFIG[CATEGORIES_CONFIG.length - 1];
-              
-              // Map categories to visual badges
-              const iconName = config.icon;
-              const textAccent = 
-                expense.status === "Rechazado" ? "text-red-400" : "text-[#4edea3]";
+              const isIngreso = getTransactionType(expense) === "ingreso";
+              const config = isIngreso
+                ? { icon: "savings", bgColor: "bg-[#4edea3]/10", textColor: "text-[#4edea3]" }
+                : CATEGORIES_CONFIG.find((c) => c.name === expense.category) || CATEGORIES_CONFIG[CATEGORIES_CONFIG.length - 1];
+
+              const textAccent =
+                expense.status === "Rechazado" ? "text-red-400" : isIngreso ? "text-[#4edea3]" : "text-[#4edea3]";
 
               return (
                 <div
                   key={expense.id}
-                  className="flex items-center justify-between p-4 hover:bg-white/5 transition-colors group relative"
+                  className="flex items-center justify-between p-4 hover:bg-white/5 transition-colors group relative cursor-pointer"
+                  onClick={() => setSelectedTransaction(expense)}
                 >
                   <div className="flex items-center gap-3.5 min-w-0 pr-2">
                     <div className={`w-11 h-11 rounded-xl ${config.bgColor} flex items-center justify-center ${config.textColor} shrink-0`}>
-                      <span className="material-symbols-outlined text-lg">{iconName}</span>
+                      <span className="material-symbols-outlined text-lg">{config.icon}</span>
                     </div>
                     <div className="min-w-0">
                       <p className="font-sans text-sm font-semibold text-[#dae2fd] truncate group-hover:text-white">
                         {expense.name}
                       </p>
                       <p className="font-mono text-xs text-[#bbcabf] truncate">
-                        {formatDate(expense.date)} • {expense.category}
+                        {formatDate(expense.date)} • {isIngreso ? "Ingreso" : expense.category}
                       </p>
                       {expense.description && (() => {
                         const descriptionLimit = 45;
@@ -308,7 +316,8 @@ export default function WeeklyTracking({
                         return (
                           <button
                             type="button"
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               if (!isLongDescription) return;
                               setExpandedDescriptionId(isExpanded ? null : expense.id);
                             }}
@@ -346,8 +355,8 @@ export default function WeeklyTracking({
 
                   <div className="flex items-center gap-2 shrink-0">
                     <div className="text-right">
-                      <p className="font-mono text-sm font-semibold text-[#dae2fd]">
-                        -${expense.amount.toFixed(2)}
+                      <p className={`font-mono text-sm font-semibold ${isIngreso ? "text-[#4edea3]" : "text-[#dae2fd]"}`}>
+                        {isIngreso ? "+" : "-"}${expense.amount.toFixed(2)}
                       </p>
                       <p className={`font-mono text-[10px] ${textAccent}`}>
                         {expense.status === "Rechazado" ? "Rechazado" : "Completado"}
@@ -357,7 +366,14 @@ export default function WeeklyTracking({
                     {/* Delete action button */}
                     {onDeleteExpense && (
                       <button
-                        onClick={() => onDeleteExpense(expense.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const result = onDeleteExpense(expense.id);
+                          if (result.ok === false) {
+                            setDeleteError(result.error);
+                            setTimeout(() => setDeleteError(null), 3000);
+                          }
+                        }}
                         className="material-symbols-outlined text-red-400 hover:text-red-300 p-1 rounded-full hover:bg-red-500/10 cursor-pointer ml-1 text-base"
                       >
                         delete
@@ -562,6 +578,27 @@ export default function WeeklyTracking({
             </form>
           </div>
         </div>
+      )}
+
+      {deleteError && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-[#171f33] border border-red-400/30 text-[#dae2fd] px-5 py-3 rounded-xl shadow-2xl text-sm max-w-xs text-center">
+          {deleteError}
+        </div>
+      )}
+
+      {selectedTransaction && onUpdateExpense && (
+        <TransactionDetailModal
+          transaction={selectedTransaction}
+          onClose={() => setSelectedTransaction(null)}
+          onSave={(updated) => {
+            const result = onUpdateExpense(updated);
+            if (result.ok) {
+              setSelectedTransaction(null);
+            }
+            return result;
+          }}
+          onDelete={onDeleteExpense}
+        />
       )}
     </div>
   );
