@@ -1,7 +1,5 @@
 import { Expense, PaymentMethod, TransactionType, WalletSplit, Wallets } from "../types";
 
-const SPLIT_TOLERANCE = 0.01;
-
 export function getTransactionType(tx: Pick<Expense, "type">): TransactionType {
   return tx.type ?? "gasto";
 }
@@ -10,12 +8,8 @@ export function getPaymentMethod(tx: Pick<Expense, "paymentMethod">): PaymentMet
   return tx.paymentMethod ?? "efectivo";
 }
 
-export function isValidSplit(split: WalletSplit, income: number): boolean {
-  if (split.tarjeta < 0 || split.efectivo < 0) {
-    return false;
-  }
-
-  return Math.abs(split.tarjeta + split.efectivo - income) <= SPLIT_TOLERANCE;
+export function isValidSplit(split: WalletSplit): boolean {
+  return split.tarjeta >= 0 && split.efectivo >= 0;
 }
 
 export function defaultSplitFromIncome(income: number): WalletSplit {

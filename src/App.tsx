@@ -28,10 +28,6 @@ type ActiveTab = "monthly" | "weekly" | "add" | "analysis";
 
 const initialAppData = initializeAppData();
 
-function walletsAreEmpty(wallets: Wallets): boolean {
-  return wallets.tarjeta === 0 && wallets.efectivo === 0;
-}
-
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>(() => {
     try {
@@ -206,10 +202,7 @@ export default function App() {
   }) => {
     setBudget(payload.budget);
     setWalletSplit(payload.walletSplit);
-
-    if (walletsAreEmpty(wallets)) {
-      setWallets(initWalletsFromSplit(payload.walletSplit));
-    }
+    setWallets(initWalletsFromSplit(payload.walletSplit));
   };
 
   const handleUpdateWallets = (nextWallets: Wallets) => {

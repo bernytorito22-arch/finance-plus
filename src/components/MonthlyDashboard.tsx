@@ -105,8 +105,8 @@ export default function MonthlyDashboard({
               onClick={() => {
                 setEditTotalBudget(budget.totalBudget.toString());
                 setEditIncome(budget.income.toString());
-                setEditSplitTarjeta(walletSplit.tarjeta.toString());
-                setEditSplitEfectivo(walletSplit.efectivo.toString());
+                setEditSplitTarjeta(wallets.tarjeta.toString());
+                setEditSplitEfectivo(wallets.efectivo.toString());
                 setSplitError("");
                 setIsEditing(true);
               }}
@@ -421,7 +421,7 @@ export default function MonthlyDashboard({
             </div>
 
             <p className="font-sans text-xs text-[#bbcabf] leading-relaxed">
-              Define tu presupuesto límite e ingresos del mes. El reparto tarjeta/efectivo se usa al iniciar (saldos en 0) o al reiniciar el ciclo.
+              Define tu presupuesto límite e ingresos del mes. Tarjeta y efectivo actualizan tus saldos al guardar y también se usan al reiniciar el ciclo.
             </p>
 
             <form onSubmit={(e) => {
@@ -435,8 +435,8 @@ export default function MonthlyDashboard({
               }
 
               const nextSplit = { tarjeta: numTarjeta, efectivo: numEfectivo };
-              if (!isValidSplit(nextSplit, numIncome)) {
-                setSplitError("Tarjeta + efectivo debe sumar el ingreso del mes.");
+              if (!isValidSplit(nextSplit)) {
+                setSplitError("Tarjeta y efectivo deben ser 0 o más.");
                 return;
               }
 

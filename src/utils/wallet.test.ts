@@ -34,16 +34,14 @@ describe("getPaymentMethod", () => {
 });
 
 describe("isValidSplit", () => {
-  it("accepts split that sums to income", () => {
-    expect(isValidSplit({ tarjeta: 700, efectivo: 300 }, 1000)).toBe(true);
-  });
-
-  it("rejects split that does not sum to income", () => {
-    expect(isValidSplit({ tarjeta: 700, efectivo: 200 }, 1000)).toBe(false);
+  it("accepts any non-negative tarjeta and efectivo", () => {
+    expect(isValidSplit({ tarjeta: 2048, efectivo: 740 })).toBe(true);
+    expect(isValidSplit({ tarjeta: 700, efectivo: 200 })).toBe(true);
   });
 
   it("rejects negative amounts", () => {
-    expect(isValidSplit({ tarjeta: -1, efectivo: 1001 }, 1000)).toBe(false);
+    expect(isValidSplit({ tarjeta: -1, efectivo: 100 })).toBe(false);
+    expect(isValidSplit({ tarjeta: 100, efectivo: -1 })).toBe(false);
   });
 });
 
