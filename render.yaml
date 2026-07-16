@@ -1,3 +1,7 @@
+# DEPRECATED — Production deploy is Cloudflare Pages (project: finance-plus).
+# Kept only for emergency rollback via `npm run build:node` + Render dashboard.
+# See wrangler.jsonc and `npm run deploy:cloudflare`.
+
 services:
   - type: web
     name: finance-plus

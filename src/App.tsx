@@ -13,6 +13,7 @@ import {
   initWalletsFromSplit,
   revertTransaction,
 } from "./utils/wallet";
+import type { AnalyzeResponse } from "./utils/analyzeInsight";
 import {
   createSnapshot,
   DataMode,
@@ -130,7 +131,7 @@ export default function App() {
       });
 
       if (res.ok) {
-        const data = await res.json();
+        const data = (await res.json()) as AnalyzeResponse;
         if (data.insight) {
           setAiRecommendation(data.insight);
         } else {
