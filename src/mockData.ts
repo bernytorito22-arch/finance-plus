@@ -1,5 +1,6 @@
-import { Expense, MonthlyBudget, WeeklyBudgets } from "./types";
+import { Expense, MonthlyBudget, WalletSplit, WeeklyBudgets } from "./types";
 import { WeekNumber } from "./utils/week";
+import { buildDemoWallets } from "./utils/wallet";
 
 function demoDate(daysAgo: number, hour = 12, minute = 0): string {
   const date = new Date();
@@ -36,6 +37,11 @@ export const DEMO_WEEK_BUDGETS: WeeklyBudgets = {
 
 export const DEMO_ACTIVE_WEEK: WeekNumber = 2;
 
+export const DEMO_WALLET_SPLIT: WalletSplit = {
+  tarjeta: 0,
+  efectivo: 3200,
+};
+
 export const DEMO_EXPENSES: Expense[] = [
   {
     id: "demo_1",
@@ -47,6 +53,7 @@ export const DEMO_EXPENSES: Expense[] = [
     week: 1,
     status: "Completado",
     paymentMethod: "tarjeta",
+    type: "gasto",
   },
   {
     id: "demo_2",
@@ -58,6 +65,7 @@ export const DEMO_EXPENSES: Expense[] = [
     week: 1,
     status: "Completado",
     paymentMethod: "tarjeta",
+    type: "gasto",
   },
   {
     id: "demo_3",
@@ -69,6 +77,7 @@ export const DEMO_EXPENSES: Expense[] = [
     week: 1,
     status: "Completado",
     paymentMethod: "efectivo",
+    type: "gasto",
   },
   {
     id: "demo_4",
@@ -80,6 +89,7 @@ export const DEMO_EXPENSES: Expense[] = [
     week: 2,
     status: "Completado",
     paymentMethod: "tarjeta",
+    type: "gasto",
   },
   {
     id: "demo_5",
@@ -91,6 +101,7 @@ export const DEMO_EXPENSES: Expense[] = [
     week: 2,
     status: "Completado",
     paymentMethod: "tarjeta",
+    type: "gasto",
   },
   {
     id: "demo_6",
@@ -102,6 +113,7 @@ export const DEMO_EXPENSES: Expense[] = [
     week: 2,
     status: "Completado",
     paymentMethod: "efectivo",
+    type: "gasto",
   },
   {
     id: "demo_7",
@@ -113,6 +125,7 @@ export const DEMO_EXPENSES: Expense[] = [
     week: 2,
     status: "Completado",
     paymentMethod: "tarjeta",
+    type: "gasto",
   },
   {
     id: "demo_8",
@@ -124,6 +137,7 @@ export const DEMO_EXPENSES: Expense[] = [
     week: 2,
     status: "Completado",
     paymentMethod: "tarjeta",
+    type: "gasto",
   },
   {
     id: "demo_9",
@@ -135,10 +149,13 @@ export const DEMO_EXPENSES: Expense[] = [
     week: 3,
     status: "Completado",
     paymentMethod: "efectivo",
+    type: "gasto",
   },
 ];
 
-// Reusable categories config for selector and design accents
+export const DEMO_WALLETS = buildDemoWallets(DEMO_WALLET_SPLIT, DEMO_EXPENSES);
+
+// Reusable categories config
 export const CATEGORIES_CONFIG = [
   { name: "Alimentación", icon: "restaurant", bgColor: "bg-primary/20", textColor: "text-primary", dotColor: "bg-primary" },
   { name: "Transporte", icon: "commute", bgColor: "bg-secondary/20", textColor: "text-secondary", dotColor: "bg-secondary" },

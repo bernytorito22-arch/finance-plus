@@ -1,5 +1,16 @@
 export type TransactionStatus = 'Completado' | 'Rechazado';
 export type PaymentMethod = 'efectivo' | 'tarjeta';
+export type TransactionType = 'gasto' | 'ingreso';
+
+export interface Wallets {
+  tarjeta: number;
+  efectivo: number;
+}
+
+export interface WalletSplit {
+  tarjeta: number;
+  efectivo: number;
+}
 
 export interface Expense {
   id: string;
@@ -11,7 +22,10 @@ export interface Expense {
   week: number; // 1, 2, 3, 4
   status: TransactionStatus;
   paymentMethod?: PaymentMethod;
+  type?: TransactionType;
 }
+
+export type MutationResult = { ok: true } | { ok: false; error: string };
 
 export interface Goal {
   id: string;
@@ -74,6 +88,8 @@ export interface MonthlyExportPayload {
   };
   budget: MonthlyBudget;
   weekBudgets: WeeklyBudgets;
+  wallets: Wallets;
+  walletSplit: WalletSplit;
   expenses: Expense[];
   summary: MonthlyExportSummary;
 }
