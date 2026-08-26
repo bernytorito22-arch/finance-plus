@@ -157,11 +157,15 @@ export const DEMO_WALLETS = buildDemoWallets(DEMO_WALLET_SPLIT, DEMO_EXPENSES);
 
 // Reusable categories config
 export const CATEGORIES_CONFIG = [
-  { name: "Alimentación", icon: "restaurant", bgColor: "bg-primary/20", textColor: "text-primary", dotColor: "bg-primary" },
-  { name: "Transporte", icon: "commute", bgColor: "bg-secondary/20", textColor: "text-secondary", dotColor: "bg-secondary" },
-  { name: "Vivienda", icon: "home", bgColor: "bg-primary-container/20", textColor: "text-primary-container", dotColor: "bg-emerald-400" },
-  { name: "Ocio", icon: "sports_esports", bgColor: "bg-tertiary-container/20", textColor: "text-tertiary", dotColor: "bg-tertiary" },
-  { name: "Salud", icon: "vaccines", bgColor: "bg-red-500/10", textColor: "text-red-400", dotColor: "bg-red-400" },
-  { name: "Compras", icon: "shopping_cart", bgColor: "bg-yellow-500/10", textColor: "text-yellow-400", dotColor: "bg-yellow-400" },
-  { name: "Otros", icon: "more_horiz", bgColor: "bg-surface-container-highest", textColor: "text-on-surface-variant", dotColor: "bg-gray-400" }
-];
+  { name: "Alimentación", icon: "restaurant", color: "#a9bc92" },
+  { name: "Transporte", icon: "commute", color: "#c4a57b" },
+  { name: "Vivienda", icon: "home", color: "#7e8f6e" },
+  { name: "Ocio", icon: "sports_esports", color: "#b08968" },
+  { name: "Salud", icon: "vaccines", color: "#d08a72" },
+  { name: "Compras", icon: "shopping_cart", color: "#d9c48a" },
+  { name: "Otros", icon: "more_horiz", color: "#6e6555" },
+] as const;
+
+export function getCategoryColor(name: string): string {
+  return CATEGORIES_CONFIG.find((c) => c.name === name)?.color ?? "#6e6555";
+}

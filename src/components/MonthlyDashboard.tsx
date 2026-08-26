@@ -2,6 +2,10 @@ import { useState } from "react";
 import { Expense, MonthlyBudget, PaymentMethod, WalletSplit, Wallets } from "../types";
 import { CATEGORIES_CONFIG } from "../mockData";
 import { isValidSplit, getTransactionType } from "../utils/wallet";
+import Money from "./ui/Money";
+import SectionLabel from "./ui/SectionLabel";
+import Button from "./ui/Button";
+import { Field, TextInput } from "./ui/Field";
 
 interface MonthlyDashboardProps {
   expenses: Expense[];
@@ -33,14 +37,11 @@ export default function MonthlyDashboard({
   const totalIncome = budget.income;
   const totalExpenses = expenseOnly.reduce((sum, exp) => sum + exp.amount, 0);
   const remainingBudget = budget.totalBudget - totalExpenses;
-  const budgetPercentage = budget.totalBudget > 0
-    ? Math.min(100, Math.round((totalExpenses / budget.totalBudget) * 100))
-    : 0;
-  const incomeBarWidth = totalIncome > 0
-    ? Math.min(100, Math.round((totalExpenses / totalIncome) * 100))
-    : 0;
+  const budgetPercentage =
+    budget.totalBudget > 0
+      ? Math.min(100, Math.round((totalExpenses / budget.totalBudget) * 100))
+      : 0;
 
-  // Category percentage calculation
   const categoryTotals: Record<string, number> = {};
   expenses.forEach((e) => {
     if (getTransactionType(e) !== "gasto") return;
@@ -50,484 +51,272 @@ export default function MonthlyDashboard({
   const categoriesWithPercentage = CATEGORIES_CONFIG.map((cat) => {
     const total = categoryTotals[cat.name] || 0;
     const percentage = totalExpenses > 0 ? Math.round((total / totalExpenses) * 100) : 0;
-    return {
-      ...cat,
-      total,
-      percentage,
-    };
+    return { ...cat, total, percentage };
   }).filter((c) => c.total > 0);
 
-  // SVG parameters for standard 100x100 donut
   const radius = 35;
   const circumference = 2 * Math.PI * radius;
-  
-  // Calculate relative offsets for categories to draw sequential arcs
   let accumulatedPercent = 0;
-  const donutArcs = categoriesWithPercentage
-    .filter(c => c.total > 0)
-    .map((cat) => {
-      const pct = (cat.total / totalExpenses) * 100;
-      const strokeDasharray = `${(pct / 100) * circumference} ${circumference}`;
-      const strokeDashoffset = -((accumulatedPercent / 100) * circumference);
-      accumulatedPercent += pct;
-      return {
-        ...cat,
-        strokeDasharray,
-        strokeDashoffset,
-      };
-    });
+  const donutArcs = categoriesWithPercentage.map((cat) => {
+    const pct = (cat.total / totalExpenses) * 100;
+    const strokeDasharray = `${(pct / 100) * circumference} ${circumference}`;
+    const strokeDashoffset = -((accumulatedPercent / 100) * circumference);
+    accumulatedPercent += pct;
+    return { ...cat, strokeDasharray, strokeDashoffset };
+  });
 
-  const cashTotal = expenseOnly
-    .filter((e) => (e.paymentMethod ?? "efectivo") === "efectivo")
-    .reduce((sum, e) => sum + e.amount, 0);
-  const cardTotal = expenseOnly
-    .filter((e) => e.paymentMethod === "tarjeta")
-    .reduce((sum, e) => sum + e.amount, 0);
-  const paymentTotal = cashTotal + cardTotal;
-  const cashPercent = paymentTotal > 0 ? Math.round((cashTotal / paymentTotal) * 100) : 0;
-  const cardPercent = paymentTotal > 0 ? 100 - cashPercent : 0;
-  const paymentRadius = 35;
-  const paymentCircumference = 2 * Math.PI * paymentRadius;
-  const cashArcLength = (cashPercent / 100) * paymentCircumference;
-  const cardArcLength = (cardPercent / 100) * paymentCircumference;
+  const splitTotal = walletSplit.tarjeta + walletSplit.efectivo;
+  const tarjetaPct = splitTotal > 0 ? Math.round((walletSplit.tarjeta / splitTotal) * 100) : 50;
+  const efectivoPct = splitTotal > 0 ? 100 - tarjetaPct : 50;
+
+  const openBudgetEditor = () => {
+    setEditTotalBudget(budget.totalBudget.toString());
+    setEditIncome(budget.income.toString());
+    setEditSplitTarjeta(wallets.tarjeta.toString());
+    setEditSplitEfectivo(wallets.efectivo.toString());
+    setSplitError("");
+    setIsEditing(true);
+  };
 
   return (
-    <div className="space-y-6">
-      {/* Hero Header Section */}
-      <section className="text-center space-y-2 py-4">
-        <p className="font-mono text-xs text-[#bbcabf] tracking-wider uppercase">Presupuesto Mensual Restante</p>
-        <div className="flex items-center justify-center gap-2">
-          <h2 className="font-sans text-4xl sm:text-5xl font-extrabold text-[#4edea3] tracking-tight pl-6">
-            ${remainingBudget.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </h2>
+    <div className="space-y-8 pb-4">
+      <section className="space-y-3 pt-2">
+        <SectionLabel>Presupuesto del ciclo</SectionLabel>
+        <div className="flex items-end justify-between gap-3">
+          <Money amount={remainingBudget} variant="hero" className="text-4xl sm:text-5xl font-semibold" />
           {onUpdateBudgetConfig && (
-            <button 
-              onClick={() => {
-                setEditTotalBudget(budget.totalBudget.toString());
-                setEditIncome(budget.income.toString());
-                setEditSplitTarjeta(wallets.tarjeta.toString());
-                setEditSplitEfectivo(wallets.efectivo.toString());
-                setSplitError("");
-                setIsEditing(true);
-              }}
-              className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 text-[#4edea3] flex items-center justify-center border border-white/5 transition-all cursor-pointer"
+            <button
+              type="button"
+              onClick={openBudgetEditor}
+              className="shrink-0 w-9 h-9 rounded-full border border-hairline text-muted hover:text-paper hover:border-muted flex items-center justify-center transition-colors cursor-pointer"
               title="Ajustar presupuesto e ingresos"
             >
-              <span className="material-symbols-outlined text-sm font-semibold">tune</span>
+              <span className="material-symbols-outlined text-lg">tune</span>
             </button>
           )}
         </div>
+        <div className="h-1 rounded-full bg-surface-raised overflow-hidden">
+          <div
+            className="h-full bg-sage transition-all duration-700"
+            style={{ width: `${budgetPercentage}%` }}
+          />
+        </div>
+        <p className="text-sm text-muted">
+          Gastado <Money amount={totalExpenses} className="text-sm" /> de{" "}
+          <Money amount={budget.totalBudget} className="text-sm" />
+        </p>
       </section>
 
-      {/* Balance Overview Card - Grid */}
-      <section className="glass-card rounded-2xl p-4 sm:p-5 grid grid-cols-2 gap-3 sm:gap-4 relative overflow-hidden">
-        <div className="space-y-1 relative z-10 min-w-0">
-          <p className="font-mono text-[11px] text-[#bbcabf] uppercase tracking-wide truncate">Ingresos</p>
-          <p className="font-sans text-base sm:text-lg md:text-xl font-bold text-[#4edea3] truncate" title={`$${totalIncome.toLocaleString("es-ES", { minimumFractionDigits: 2 })}`}>
-            ${totalIncome.toLocaleString("es-ES", { minimumFractionDigits: 2 })}
-          </p>
-            <div className="h-1.5 bg-[#171f33] rounded-full overflow-hidden">
-            <div
-              className="h-full bg-[#4edea3] shadow-[0_0_8px_rgba(78,222,163,0.5)] transition-all duration-700"
-              style={{ width: `${incomeBarWidth}%` }}
-            ></div>
-          </div>
+      <section className="grid grid-cols-2 gap-0 border-y border-hairline py-4">
+        <div className="pr-4 border-r border-hairline space-y-1">
+          <SectionLabel>Ingreso</SectionLabel>
+          <Money amount={totalIncome} className="text-lg font-medium" />
         </div>
-        
-        <div className="space-y-1 relative z-10 border-l border-white/10 pl-3 sm:pl-4 min-w-0">
-          <p className="font-mono text-[11px] text-[#bbcabf] uppercase tracking-wide truncate">Gastos</p>
-          <p className="font-sans text-base sm:text-lg md:text-xl font-bold text-[#dae2fd] truncate" title={`$${totalExpenses.toLocaleString("es-ES", { minimumFractionDigits: 2 })}`}>
-            ${totalExpenses.toLocaleString("es-ES", { minimumFractionDigits: 2 })}
-          </p>
-          <div className="h-1.5 bg-[#171f33] rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-[#adc6ff] shadow-[0_0_8px_rgba(173,198,255,0.5)] transition-all duration-700" 
-              style={{ width: `${Math.min(100, budgetPercentage)}%` }}
-            ></div>
-          </div>
+        <div className="pl-4 space-y-1">
+          <SectionLabel>Gastado</SectionLabel>
+          <Money amount={totalExpenses} className="text-lg font-medium" />
         </div>
       </section>
 
-      <section className="glass-card rounded-2xl p-4 sm:p-5 space-y-3">
+      <section className="border-y border-hairline divide-y divide-hairline">
         <button
           type="button"
           onClick={() => {
             setEditingWallet("tarjeta");
             setEditWalletAmount(wallets.tarjeta.toString());
           }}
-          className="flex items-center justify-between w-full text-left hover:bg-white/5 rounded-xl p-2 -m-2 transition-colors cursor-pointer"
+          className="flex items-center justify-between w-full py-4 text-left hover:opacity-80 transition-opacity cursor-pointer"
         >
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="material-symbols-outlined text-[#adc6ff] text-lg">credit_card</span>
-            <span className="font-mono text-[11px] text-[#bbcabf] uppercase tracking-wide">Tarjeta</span>
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-muted text-lg">credit_card</span>
+            <span className="text-sm text-muted">Tarjeta</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="font-sans text-base font-bold text-[#adc6ff]">
-              ${wallets.tarjeta.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </span>
+            <Money amount={wallets.tarjeta} className="text-base" />
             {onUpdateWallets && (
-              <span className="material-symbols-outlined text-sm text-[#bbcabf]">edit</span>
+              <span className="material-symbols-outlined text-sm text-muted">edit</span>
             )}
           </div>
         </button>
-        <div className="h-px bg-white/10" />
         <button
           type="button"
           onClick={() => {
             setEditingWallet("efectivo");
             setEditWalletAmount(wallets.efectivo.toString());
           }}
-          className="flex items-center justify-between w-full text-left hover:bg-white/5 rounded-xl p-2 -m-2 transition-colors cursor-pointer"
+          className="flex items-center justify-between w-full py-4 text-left hover:opacity-80 transition-opacity cursor-pointer"
         >
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="material-symbols-outlined text-[#4edea3] text-lg">payments</span>
-            <span className="font-mono text-[11px] text-[#bbcabf] uppercase tracking-wide">Efectivo</span>
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-muted text-lg">payments</span>
+            <span className="text-sm text-muted">Efectivo</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="font-sans text-base font-bold text-[#4edea3]">
-              ${wallets.efectivo.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </span>
+            <Money amount={wallets.efectivo} className="text-base" />
             {onUpdateWallets && (
-              <span className="material-symbols-outlined text-sm text-[#bbcabf]">edit</span>
+              <span className="material-symbols-outlined text-sm text-muted">edit</span>
             )}
           </div>
         </button>
       </section>
 
-      {/* Circular Expense Distribution Graph */}
-      <section className="glass-card rounded-2xl p-5">
-        <h3 className="font-sans text-lg font-bold text-[#dae2fd] mb-4">Distribución</h3>
-
-        <div className="flex flex-col items-center sm:flex-row sm:justify-around gap-6">
-          {/* Animated Donut Chart */}
-          <div className="relative w-[180px] h-[180px]">
-            <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-              {/* Background circle */}
-              <circle
-                cx="50"
-                cy="50"
-                r={radius}
-                fill="transparent"
-                stroke="#171f33"
-                strokeWidth="10"
-              />
-              
+      <section className="space-y-5">
+        <h3 className="font-serif text-lg text-paper">Por categoría</h3>
+        <div className="flex flex-col items-center sm:flex-row sm:items-start gap-8">
+          <div className="relative w-[160px] h-[160px] shrink-0">
+            <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r={radius} fill="transparent" stroke="#262118" strokeWidth="10" />
               {totalExpenses === 0 ? (
-                // Draw fallback gray circle if no expenses
-                <circle
-                  cx="50"
-                  cy="50"
-                  r={radius}
-                  fill="transparent"
-                  stroke="#2d3449"
-                  strokeWidth="10"
-                />
+                <circle cx="50" cy="50" r={radius} fill="transparent" stroke="#322c22" strokeWidth="10" />
               ) : (
-                /* Dynamic colored arcs */
-                donutArcs.map((arc, idx) => {
-                  // Fallback color mapping to hex values
-                  const strokeColor = 
-                    arc.name === "Alimentación" ? "#4edea3" :
-                    arc.name === "Transporte" ? "#adc6ff" :
-                    arc.name === "Vivienda" ? "#10b981" :
-                    arc.name === "Ocio" ? "#c0c1ff" :
-                    arc.name === "Salud" ? "#ffb4ab" :
-                    arc.name === "Compras" ? "#facc15" : "#94a3b8";
-
-                  return (
-                    <circle
-                      key={idx}
-                      className="transition-all duration-1000"
-                      cx="50"
-                      cy="50"
-                      r={radius}
-                      fill="transparent"
-                      stroke={strokeColor}
-                      strokeWidth="10"
-                      strokeDasharray={arc.strokeDasharray}
-                      strokeDashoffset={arc.strokeDashoffset}
-                      strokeLinecap="round"
-                    />
-                  );
-                })
+                donutArcs.map((arc) => (
+                  <circle
+                    key={arc.name}
+                    className="transition-all duration-1000"
+                    cx="50"
+                    cy="50"
+                    r={radius}
+                    fill="transparent"
+                    stroke={arc.color}
+                    strokeWidth="10"
+                    strokeDasharray={arc.strokeDasharray}
+                    strokeDashoffset={arc.strokeDashoffset}
+                    strokeLinecap="round"
+                  />
+                ))
               )}
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="font-mono text-xs text-[#bbcabf] uppercase tracking-wide">Límite</span>
-              <span className="font-sans text-2xl font-black text-[#dae2fd]">{budgetPercentage}%</span>
+              <span className="text-[10px] uppercase tracking-wider text-muted">Usado</span>
+              <span className="font-mono tabular-nums text-xl text-paper">{budgetPercentage}%</span>
             </div>
           </div>
-
-          {/* Color Indicators Legends */}
-          <div className="space-y-3 w-full sm:w-auto">
+          <div className="flex-1 w-full space-y-3">
             {categoriesWithPercentage.length === 0 ? (
-              <p className="font-sans text-sm text-[#bbcabf]/70 text-center sm:text-left">
-                Sin gastos registrados aún
-              </p>
+              <p className="text-sm text-muted">Sin gastos registrados aún</p>
             ) : (
-              categoriesWithPercentage.map((cat, idx) => {
-              const bgIndicator = 
-                cat.name === "Alimentación" ? "bg-[#4edea3]" :
-                cat.name === "Transporte" ? "bg-[#adc6ff]" :
-                cat.name === "Vivienda" ? "bg-[#10b981]" :
-                cat.name === "Ocio" ? "bg-[#c0c1ff]" :
-                cat.name === "Salud" ? "bg-[#ffb4ab]" :
-                cat.name === "Compras" ? "bg-[#facc15]" : "bg-[#94a3b8]";
-
-              const neonGlow = 
-                cat.name === "Alimentación" ? "shadow-[0_0_10px_rgba(78,222,163,0.4)]" :
-                cat.name === "Transporte" ? "shadow-[0_0_10px_rgba(173,198,255,0.4)]" :
-                "shadow-sm";
-
-              return (
-                <div key={idx} className="flex items-center gap-3 min-w-0">
-                  <div className={`w-3 h-3 rounded-full ${bgIndicator} ${neonGlow} shrink-0`} />
-                  <span className="font-sans text-sm text-[#dae2fd] flex-1 min-w-[90px] truncate" title={cat.name}>{cat.name}</span>
-                  <span className="font-mono text-xs text-[#bbcabf] font-semibold text-right shrink-0">
+              categoriesWithPercentage.map((cat) => (
+                <div key={cat.name} className="flex items-center gap-3 min-w-0">
+                  <div
+                    className="w-2.5 h-2.5 rounded-full shrink-0"
+                    style={{ backgroundColor: cat.color }}
+                  />
+                  <span className="text-sm text-paper flex-1 truncate">{cat.name}</span>
+                  <span className="font-mono tabular-nums text-xs text-muted shrink-0">
                     {cat.percentage}%
                   </span>
+                  <Money amount={cat.total} className="text-sm shrink-0" />
                 </div>
-              );
-            })
+              ))
             )}
           </div>
         </div>
       </section>
 
-      {/* Payment Method Breakdown */}
-      <section className="glass-card rounded-2xl p-5">
-        <h3 className="font-sans text-lg font-bold text-[#dae2fd] mb-4">Efectivo vs Tarjeta</h3>
-
-        <div className="flex flex-col items-center sm:flex-row sm:justify-around gap-6">
-          <div className="relative w-[180px] h-[180px]">
-            <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-              <circle
-                cx="50"
-                cy="50"
-                r={paymentRadius}
-                fill="transparent"
-                stroke="#171f33"
-                strokeWidth="10"
-              />
-              {paymentTotal === 0 ? (
-                <circle
-                  cx="50"
-                  cy="50"
-                  r={paymentRadius}
-                  fill="transparent"
-                  stroke="#2d3449"
-                  strokeWidth="10"
-                />
-              ) : (
-                <>
-                  {cashTotal > 0 && (
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r={paymentRadius}
-                      fill="transparent"
-                      stroke="#4edea3"
-                      strokeWidth="10"
-                      strokeDasharray={`${cashArcLength} ${paymentCircumference}`}
-                      strokeDashoffset="0"
-                      strokeLinecap="round"
-                      className="transition-all duration-1000"
-                    />
-                  )}
-                  {cardTotal > 0 && (
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r={paymentRadius}
-                      fill="transparent"
-                      stroke="#adc6ff"
-                      strokeWidth="10"
-                      strokeDasharray={`${cardArcLength} ${paymentCircumference}`}
-                      strokeDashoffset={-cashArcLength}
-                      strokeLinecap="round"
-                      className="transition-all duration-1000"
-                    />
-                  )}
-                </>
-              )}
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="font-mono text-xs text-[#bbcabf] uppercase tracking-wide">Total</span>
-              <span className="font-sans text-lg font-black text-[#dae2fd]">
-                ${paymentTotal.toLocaleString("es-ES", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-              </span>
-            </div>
-          </div>
-
-          <div className="space-y-4 w-full sm:w-auto">
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-3 h-3 rounded-full bg-[#4edea3] shadow-[0_0_10px_rgba(78,222,163,0.4)] shrink-0" />
-                <span className="font-sans text-sm text-[#dae2fd] flex-1">Efectivo</span>
-                <span className="font-mono text-xs text-[#bbcabf] font-semibold">{cashPercent}%</span>
-              </div>
-              <div className="h-2 bg-[#171f33] rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-[#4edea3] shadow-[0_0_8px_rgba(78,222,163,0.5)] transition-all duration-700"
-                  style={{ width: `${cashPercent}%` }}
-                />
-              </div>
-              <p className="font-mono text-sm font-bold text-[#4edea3]">
-                ${cashTotal.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-3 h-3 rounded-full bg-[#adc6ff] shadow-[0_0_10px_rgba(173,198,255,0.4)] shrink-0" />
-                <span className="font-sans text-sm text-[#dae2fd] flex-1">Tarjeta</span>
-                <span className="font-mono text-xs text-[#bbcabf] font-semibold">{cardPercent}%</span>
-              </div>
-              <div className="h-2 bg-[#171f33] rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-[#adc6ff] shadow-[0_0_8px_rgba(173,198,255,0.5)] transition-all duration-700"
-                  style={{ width: `${cardPercent}%` }}
-                />
-              </div>
-              <p className="font-mono text-sm font-bold text-[#adc6ff]">
-                ${cardTotal.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-            </div>
-
-            {paymentTotal === 0 && (
-              <p className="font-sans text-sm text-[#bbcabf]/70 text-center sm:text-left">
-                Registra gastos indicando el método de pago
-              </p>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* Budget and Income configuration modal */}
       {isEditing && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#060e20]/85 backdrop-blur-md">
-          <div className="glass-card w-full max-w-sm rounded-2xl p-6 space-y-5 animate-fade-in relative border border-white/10 shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
-            <div className="flex items-center justify-between pb-2 border-b border-white/5">
-              <h3 className="font-sans text-lg font-bold text-[#dae2fd] flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-[#4edea3]">tune</span>
-                Ajustes de Presupuesto
-              </h3>
-              <button 
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4 bg-ink/80">
+          <div className="w-full max-w-sm bg-surface border border-hairline rounded-2xl p-6 space-y-5">
+            <div className="flex items-center justify-between">
+              <h3 className="font-serif text-lg text-paper">Ajustar presupuesto</h3>
+              <button
+                type="button"
                 onClick={() => setIsEditing(false)}
-                className="text-[#bbcabf] hover:text-white transition-all cursor-pointer w-6 h-6 flex items-center justify-center rounded-lg hover:bg-white/5"
+                className="text-muted hover:text-paper cursor-pointer"
               >
-                <span className="material-symbols-outlined text-lg">close</span>
+                <span className="material-symbols-outlined">close</span>
               </button>
             </div>
 
-            <p className="font-sans text-xs text-[#bbcabf] leading-relaxed">
-              Define tu presupuesto límite e ingresos del mes. Tarjeta y efectivo actualizan tus saldos al guardar y también se usan al reiniciar el ciclo.
-            </p>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const numBudget = parseFloat(editTotalBudget);
+                const numIncome = parseFloat(editIncome);
+                const numTarjeta = parseFloat(editSplitTarjeta);
+                const numEfectivo = parseFloat(editSplitEfectivo);
+                if (
+                  isNaN(numBudget) ||
+                  isNaN(numIncome) ||
+                  isNaN(numTarjeta) ||
+                  isNaN(numEfectivo) ||
+                  !onUpdateBudgetConfig
+                ) {
+                  return;
+                }
+                const nextSplit = { tarjeta: numTarjeta, efectivo: numEfectivo };
+                if (!isValidSplit(nextSplit)) {
+                  setSplitError("Tarjeta y efectivo deben ser 0 o más.");
+                  return;
+                }
+                onUpdateBudgetConfig({
+                  budget: { totalBudget: numBudget, income: numIncome },
+                  walletSplit: nextSplit,
+                });
+                setSplitError("");
+                setIsEditing(false);
+              }}
+              className="space-y-5"
+            >
+              <Field label="Presupuesto del ciclo">
+                <TextInput
+                  type="number"
+                  step="0.01"
+                  required
+                  value={editTotalBudget}
+                  onChange={(e) => setEditTotalBudget(e.target.value)}
+                />
+              </Field>
+              <Field label="Ingreso mensual">
+                <TextInput
+                  type="number"
+                  step="0.01"
+                  required
+                  value={editIncome}
+                  onChange={(e) => setEditIncome(e.target.value)}
+                />
+              </Field>
 
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              const numBudget = parseFloat(editTotalBudget);
-              const numIncome = parseFloat(editIncome);
-              const numTarjeta = parseFloat(editSplitTarjeta);
-              const numEfectivo = parseFloat(editSplitEfectivo);
-              if (isNaN(numBudget) || isNaN(numIncome) || isNaN(numTarjeta) || isNaN(numEfectivo) || !onUpdateBudgetConfig) {
-                return;
-              }
-
-              const nextSplit = { tarjeta: numTarjeta, efectivo: numEfectivo };
-              if (!isValidSplit(nextSplit)) {
-                setSplitError("Tarjeta y efectivo deben ser 0 o más.");
-                return;
-              }
-
-              onUpdateBudgetConfig({
-                budget: { totalBudget: numBudget, income: numIncome },
-                walletSplit: nextSplit,
-              });
-              setSplitError("");
-              setIsEditing(false);
-            }} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="font-mono text-[10px] text-[#bbcabf] uppercase tracking-wider block">Presupuesto Máximo Mensual</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 font-sans text-sm text-[#bbcabf] select-none">$</span>
-                  <input 
-                    type="number" 
-                    step="0.01"
-                    required
-                    value={editTotalBudget}
-                    onChange={(e) => setEditTotalBudget(e.target.value)}
-                    className="w-full bg-[#171f33]/70 border border-white/10 rounded-xl py-2.5 pl-8 pr-4 font-sans text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#4edea3] focus:border-[#4edea3] transition-all"
+              <div className="space-y-3">
+                <SectionLabel>Distribución entre wallets</SectionLabel>
+                <div className="flex h-2 rounded-full overflow-hidden bg-surface-raised">
+                  <div className="bg-sage transition-all" style={{ width: `${tarjetaPct}%` }} />
+                  <div
+                    className="bg-cat-transporte transition-all"
+                    style={{ width: `${efectivoPct}%` }}
                   />
                 </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="font-mono text-[10px] text-[#bbcabf] uppercase tracking-wider block">Ingresos del Mes</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 font-sans text-sm text-[#bbcabf] select-none">$</span>
-                  <input 
-                    type="number" 
-                    step="0.01"
-                    required
-                    value={editIncome}
-                    onChange={(e) => setEditIncome(e.target.value)}
-                    className="w-full bg-[#171f33]/70 border border-white/10 rounded-xl py-2.5 pl-8 pr-4 font-sans text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#4edea3] focus:border-[#4edea3] transition-all"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="font-mono text-[10px] text-[#bbcabf] uppercase tracking-wider block">Tarjeta</label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 font-sans text-sm text-[#bbcabf] select-none">$</span>
-                    <input
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Tarjeta">
+                    <TextInput
                       type="number"
                       step="0.01"
                       min="0"
                       required
                       value={editSplitTarjeta}
                       onChange={(e) => setEditSplitTarjeta(e.target.value)}
-                      className="w-full bg-[#171f33]/70 border border-white/10 rounded-xl py-2.5 pl-8 pr-4 font-sans text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#4edea3] focus:border-[#4edea3] transition-all"
                     />
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="font-mono text-[10px] text-[#bbcabf] uppercase tracking-wider block">Efectivo</label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 font-sans text-sm text-[#bbcabf] select-none">$</span>
-                    <input
+                  </Field>
+                  <Field label="Efectivo">
+                    <TextInput
                       type="number"
                       step="0.01"
                       min="0"
                       required
                       value={editSplitEfectivo}
                       onChange={(e) => setEditSplitEfectivo(e.target.value)}
-                      className="w-full bg-[#171f33]/70 border border-white/10 rounded-xl py-2.5 pl-8 pr-4 font-sans text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#4edea3] focus:border-[#4edea3] transition-all"
                     />
-                  </div>
+                  </Field>
                 </div>
               </div>
 
-              {splitError && (
-                <p className="font-sans text-xs text-red-400">{splitError}</p>
-              )}
+              {splitError && <p className="text-xs text-clay">{splitError}</p>}
 
-              <div className="flex gap-2 pt-2">
-                <button 
-                  type="button"
-                  onClick={() => setIsEditing(false)}
-                  className="flex-1 bg-white/5 hover:bg-white/10 border border-white/5 text-[#dae2fd] text-xs font-semibold py-2.5 rounded-xl transition-all cursor-pointer"
-                >
+              <div className="flex flex-col gap-2 pt-1">
+                <Button type="submit" fullWidth>
+                  Guardar cambios
+                </Button>
+                <Button type="button" variant="ghost" fullWidth onClick={() => setIsEditing(false)}>
                   Cancelar
-                </button>
-                <button 
-                  type="submit"
-                  className="flex-1 bg-gradient-to-br from-[#4edea3] to-[#10b981] hover:brightness-105 active:scale-[0.98] text-[#002113] text-xs font-bold py-2.5 rounded-xl shadow-[0_4px_12px_rgba(78,222,163,0.3)] transition-all cursor-pointer"
-                >
-                  Guardar
-                </button>
+                </Button>
               </div>
             </form>
           </div>
@@ -535,9 +324,9 @@ export default function MonthlyDashboard({
       )}
 
       {editingWallet && onUpdateWallets && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#060e20]/85 backdrop-blur-md">
-          <div className="glass-card w-full max-w-sm rounded-2xl p-6 space-y-5 animate-fade-in relative border border-white/10 shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
-            <h3 className="font-sans text-lg font-bold text-[#dae2fd]">
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4 bg-ink/80">
+          <div className="w-full max-w-sm bg-surface border border-hairline rounded-2xl p-6 space-y-5">
+            <h3 className="font-serif text-lg text-paper">
               Ajustar saldo — {editingWallet === "tarjeta" ? "Tarjeta" : "Efectivo"}
             </h3>
             <form
@@ -550,32 +339,23 @@ export default function MonthlyDashboard({
               }}
               className="space-y-4"
             >
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 font-sans text-sm text-[#bbcabf] select-none">$</span>
-                <input
+              <Field label="Saldo">
+                <TextInput
                   type="number"
                   step="0.01"
                   min="0"
                   required
                   value={editWalletAmount}
                   onChange={(e) => setEditWalletAmount(e.target.value)}
-                  className="w-full bg-[#171f33]/70 border border-white/10 rounded-xl py-2.5 pl-8 pr-4 font-sans text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#4edea3] focus:border-[#4edea3] transition-all"
                 />
-              </div>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setEditingWallet(null)}
-                  className="flex-1 bg-white/5 hover:bg-white/10 border border-white/5 text-[#dae2fd] text-xs font-semibold py-2.5 rounded-xl transition-all cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 bg-gradient-to-br from-[#4edea3] to-[#10b981] hover:brightness-105 active:scale-[0.98] text-[#002113] text-xs font-bold py-2.5 rounded-xl shadow-[0_4px_12px_rgba(78,222,163,0.3)] transition-all cursor-pointer"
-                >
+              </Field>
+              <div className="flex flex-col gap-2">
+                <Button type="submit" fullWidth>
                   Guardar
-                </button>
+                </Button>
+                <Button type="button" variant="ghost" fullWidth onClick={() => setEditingWallet(null)}>
+                  Cancelar
+                </Button>
               </div>
             </form>
           </div>

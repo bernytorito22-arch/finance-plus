@@ -239,7 +239,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0b1326] text-[#dae2fd]">
+    <div className="min-h-screen bg-ink text-paper">
       <Header
         appName="Finance+"
         isDemoMode={isDemoMode}
@@ -248,10 +248,10 @@ export default function App() {
 
       {isDemoMode && (
         <div className="app-demo-banner fixed left-0 w-full z-40 px-4">
-          <div className="max-w-lg mx-auto bg-[#4edea3]/10 border border-[#4edea3]/25 rounded-xl px-3 py-2 flex items-center gap-2">
-            <span className="material-symbols-outlined text-[#4edea3] text-base">science</span>
-            <p className="font-sans text-xs text-[#dae2fd]">
-              Estás viendo <span className="font-bold text-[#4edea3]">datos de ejemplo</span>. Cambia a tus datos para empezar en blanco.
+          <div className="max-w-lg mx-auto bg-surface border border-hairline rounded-xl px-3 py-2 flex items-center gap-2">
+            <span className="material-symbols-outlined text-sage text-base">science</span>
+            <p className="font-sans text-xs text-paper">
+              Estás viendo <span className="font-semibold text-sage">datos de ejemplo</span>. Cambia a tus datos para empezar en blanco.
             </p>
           </div>
         </div>
@@ -311,62 +311,56 @@ export default function App() {
         )}
       </main>
 
-      <nav className="app-bottom-nav safe-area-bottom fixed bottom-0 left-0 w-full z-50 rounded-t-2xl bg-[#171f33]/90 backdrop-blur-2xl border-t border-white/5 shadow-[0_-4px_20px_rgba(78,222,163,0.15)] flex justify-around items-center px-4 pt-2.5">
-        <button
-          onClick={() => setActiveTab("monthly")}
-          className={`flex flex-col items-center justify-center transition-all cursor-pointer ${
-            activeTab === "monthly"
-              ? "bg-[#10b981]/20 text-[#4edea3] rounded-xl px-4 py-1.5 active:scale-95 duration-200"
-              : "text-[#bbcabf] hover:text-[#4edea3]/80 active:scale-90 duration-200"
-          }`}
-        >
-          <span className="material-symbols-outlined" style={{ fontVariationSettings: `'FILL' ${activeTab === "monthly" ? 1 : 0}` }}>
-            dashboard
-          </span>
-          <span className="font-mono text-[10px] tracking-wide mt-0.5">Monthly</span>
-        </button>
+      <nav className="app-bottom-nav safe-area-bottom fixed bottom-0 left-0 w-full z-50 bg-surface border-t border-hairline flex justify-around items-end px-4 pt-2">
+        {(
+          [
+            { id: "monthly" as const, icon: "dashboard", label: "Monthly" },
+            { id: "weekly" as const, icon: "calendar_view_week", label: "Weekly" },
+            null,
+            { id: "analysis" as const, icon: "analytics", label: "Resumen" },
+          ] as const
+        ).map((item) => {
+          if (item === null) {
+            return (
+              <button
+                key="add"
+                onClick={() => setActiveTab("add")}
+                className={`relative z-10 w-12 h-12 -mt-5 rounded-full flex items-center justify-center active:scale-90 transition-transform cursor-pointer ${
+                  activeTab === "add"
+                    ? "bg-sage text-ink"
+                    : "bg-sage text-ink opacity-90 hover:opacity-100"
+                }`}
+                aria-label="Agregar"
+              >
+                <span className="material-symbols-outlined text-2xl font-bold select-none">add</span>
+              </button>
+            );
+          }
 
-        <button
-          onClick={() => setActiveTab("weekly")}
-          className={`flex flex-col items-center justify-center transition-all cursor-pointer ${
-            activeTab === "weekly"
-              ? "bg-[#10b981]/20 text-[#4edea3] rounded-xl px-4 py-1.5 active:scale-95 duration-200"
-              : "text-[#bbcabf] hover:text-[#4edea3]/80 active:scale-90 duration-200"
-          }`}
-        >
-          <span className="material-symbols-outlined" style={{ fontVariationSettings: `'FILL' ${activeTab === "weekly" ? 1 : 0}` }}>
-            calendar_view_week
-          </span>
-          <span className="font-mono text-[10px] tracking-wide mt-0.5">Weekly</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("add")}
-          className={`relative z-10 w-12 h-12 rounded-full flex items-center justify-center active:scale-90 transition-transform cursor-pointer ${
-            activeTab === "add"
-              ? "bg-gradient-to-br from-[#4edea3] to-[#10b981] text-[#002113] shadow-[0_0_15px_rgba(78,222,163,0.5)]"
-              : "bg-[#171f33] border border-[#3c4a42] text-[#bbcabf] hover:text-white"
-          }`}
-          style={{ marginTop: "-20px" }}
-        >
-          <span className="material-symbols-outlined text-2xl font-extrabold select-none">
-            add
-          </span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("analysis")}
-          className={`flex flex-col items-center justify-center transition-all cursor-pointer ${
-            activeTab === "analysis"
-              ? "bg-[#10b981]/20 text-[#4edea3] rounded-xl px-4 py-1.5 active:scale-95 duration-200"
-              : "text-[#bbcabf] hover:text-[#4edea3]/80 active:scale-90 duration-200"
-          }`}
-        >
-          <span className="material-symbols-outlined" style={{ fontVariationSettings: `'FILL' ${activeTab === "analysis" ? 1 : 0}` }}>
-            analytics
-          </span>
-          <span className="font-mono text-[10px] tracking-wide mt-0.5">Resumen</span>
-        </button>
+          const isActive = activeTab === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => setActiveTab(item.id)}
+              className={`flex flex-col items-center justify-center gap-0.5 pb-1 transition-all cursor-pointer min-w-[4.5rem] ${
+                isActive ? "text-sage" : "text-muted hover:text-paper"
+              }`}
+            >
+              <span
+                className="material-symbols-outlined text-[22px]"
+                style={{ fontVariationSettings: `'FILL' ${isActive ? 1 : 0}` }}
+              >
+                {item.icon}
+              </span>
+              <span className="text-[10px] tracking-wide">{item.label}</span>
+              <span
+                className={`h-0.5 w-5 rounded-full transition-opacity ${
+                  isActive ? "bg-sage opacity-100" : "opacity-0"
+                }`}
+              />
+            </button>
+          );
+        })}
       </nav>
     </div>
   );

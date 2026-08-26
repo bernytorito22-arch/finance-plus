@@ -4,6 +4,9 @@ import { Expense, PaymentMethod, TransactionType, Wallets } from "../types";
 import { WeekNumber } from "../utils/week";
 import { canAfford } from "../utils/wallet";
 import { MutationResult } from "../types";
+import SectionLabel from "./ui/SectionLabel";
+import Button from "./ui/Button";
+import { Field, TextInput, SelectInput } from "./ui/Field";
 
 interface AddExpenseProps {
   onSaveExpense: (
@@ -15,6 +18,15 @@ interface AddExpenseProps {
   activeWeek?: WeekNumber;
   wallets: Wallets;
 }
+
+const textareaBase =
+  "w-full bg-transparent border-0 border-b border-hairline pb-2.5 pt-1 text-paper placeholder:text-muted/60 focus:border-sage focus:ring-0 text-base resize-none";
+
+const chipBase =
+  "py-3 px-3 rounded-xl text-sm border transition-all cursor-pointer flex items-center justify-center gap-2";
+const chipInactive =
+  "bg-transparent border-hairline text-muted hover:border-muted hover:text-paper";
+const chipActive = "bg-transparent border-sage text-paper";
 
 export default function AddExpense({ onSaveExpense, activeWeek = 1, wallets }: AddExpenseProps) {
   const [entryType, setEntryType] = useState<TransactionType>("gasto");
@@ -89,22 +101,30 @@ export default function AddExpense({ onSaveExpense, activeWeek = 1, wallets }: A
     setTimeout(() => setShowToast(false), 3000);
   };
 
+  const isSuccessToast = toastMessage.includes("exitosamente");
+
   return (
     <div className="space-y-6">
-      {/* Toast Alert */}
       {showToast && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-[#171f33] border border-[#4edea3]/30 text-[#dae2fd] px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-bounce">
-          <span className="material-symbols-outlined text-[#4edea3]">info</span>
-          <span className="text-sm font-sans">{toastMessage}</span>
+        <div
+          className={`fixed top-20 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-xl flex items-center gap-3 ${
+            isSuccessToast
+              ? "bg-surface-raised border border-hairline text-sage"
+              : "bg-clay-surface border border-clay/30 text-clay"
+          }`}
+        >
+          <span className="material-symbols-outlined text-lg">
+            {isSuccessToast ? "check_circle" : "info"}
+          </span>
+          <span className="text-sm">{toastMessage}</span>
         </div>
       )}
 
-      {/* Hero Section */}
       <div>
-        <h2 className="font-sans text-2xl font-bold text-[#dae2fd] mb-1">
+        <h2 className="font-serif text-2xl font-semibold text-paper mb-1">
           {entryType === "gasto" ? "Añadir Gasto" : "Añadir Ingreso"}
         </h2>
-        <p className="text-[#bbcabf] font-sans text-sm">
+        <p className="text-muted text-sm">
           {entryType === "gasto"
             ? "Registra tus movimientos financieros con precisión."
             : "Agrega dinero a tarjeta o efectivo sin afectar el presupuesto."}
@@ -117,10 +137,10 @@ export default function AddExpense({ onSaveExpense, activeWeek = 1, wallets }: A
             key={type}
             type="button"
             onClick={() => setEntryType(type)}
-            className={`py-2.5 px-3 rounded-xl font-sans text-sm border transition-all cursor-pointer capitalize ${
+            className={`py-2.5 px-3 rounded-xl text-sm transition-all cursor-pointer capitalize ${
               entryType === type
-                ? "bg-[#4edea3]/10 border-[#4edea3] text-[#4edea3]"
-                : "bg-[#060e20] border-[#3c4a42] text-[#bbcabf] hover:border-[#bbcabf]/30"
+                ? "bg-sage text-ink font-medium"
+                : "border border-hairline text-muted hover:text-paper"
             }`}
           >
             {type === "gasto" ? "Gasto" : "Ingreso"}
@@ -128,24 +148,21 @@ export default function AddExpense({ onSaveExpense, activeWeek = 1, wallets }: A
         ))}
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Large Amount Input (Hero Input) */}
-        <div className="glass-card rounded-2xl p-6 flex flex-col items-center justify-center relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-1 primary-gradient"></div>
-          <label className="font-mono text-xs text-[#bbcabf] uppercase tracking-wider mb-2 select-none">
+      <form onSubmit={handleSubmit} className="space-y-8">
+        <div className="flex flex-col items-center py-6 space-y-3">
+          <SectionLabel>
             {entryType === "gasto" ? "Monto del Gasto" : "Monto del Ingreso"}
-          </label>
-          <div className="flex items-baseline justify-center w-full max-w-[240px]">
-            <span className="text-[#4edea3] font-sans text-5xl font-bold mr-1 select-none">$</span>
+          </SectionLabel>
+          <div className="flex items-baseline justify-center w-full max-w-[280px] gap-1">
+            <span className="font-serif text-4xl sm:text-5xl text-sage select-none">$</span>
             <input
               type="text"
               inputMode="decimal"
               pattern="[0-9]*\.?[0-9]*"
-              className="bg-transparent border-none text-center font-sans text-5xl font-bold text-[#dae2fd] w-full focus:ring-0 placeholder:text-[#2d3449]"
+              className="bg-transparent border-none text-center font-serif text-4xl sm:text-5xl font-semibold text-paper w-full focus:ring-0 placeholder:text-muted/40 tabular-nums"
               placeholder="0.00"
               value={amount}
               onChange={(e) => {
-                // Allow only decimal values
                 const val = e.target.value;
                 if (val === "" || /^\d*\.?\d*$/.test(val)) {
                   setAmount(val);
@@ -156,76 +173,56 @@ export default function AddExpense({ onSaveExpense, activeWeek = 1, wallets }: A
           </div>
         </div>
 
-        {/* Main Form Box */}
-        <div className="glass-card rounded-2xl p-5 space-y-4">
-          {/* Expense Name */}
-          <div className="flex flex-col gap-1.5">
-            <label className="font-sans text-sm font-semibold text-[#dae2fd] ml-1">
-              {entryType === "gasto" ? "Nombre del gasto *" : "Nombre (opcional)"}
-            </label>
-            <div className="relative">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#bbcabf] text-xl select-none">
-                shopping_cart
-              </span>
-              <input
-                type="text"
-                className="w-full bg-[#060e20] border border-[#3c4a42] rounded-xl py-3 pl-11 pr-4 text-sm text-[#dae2fd] transition-all focus:border-[#4edea3] focus:ring-1 focus:ring-[#4edea3]/20"
-                placeholder={entryType === "gasto" ? "Ej. Supermercado, Alquiler, Restaurante..." : "Ej. Quincena, Transferencia..."}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required={entryType === "gasto"}
-              />
-            </div>
-          </div>
+        <div className="space-y-5 border-t border-hairline pt-6">
+          <Field label={entryType === "gasto" ? "Nombre del gasto *" : "Nombre (opcional)"}>
+            <TextInput
+              type="text"
+              placeholder={
+                entryType === "gasto"
+                  ? "Ej. Supermercado, Alquiler, Restaurante..."
+                  : "Ej. Quincena, Transferencia..."
+              }
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required={entryType === "gasto"}
+            />
+          </Field>
 
           {entryType === "gasto" && (
-          <div className="flex flex-col gap-1.5">
-            <label className="font-sans text-sm font-semibold text-[#dae2fd] ml-1">
-              Categoría
-            </label>
-            <div className="relative">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#bbcabf] text-xl select-none">
-                category
-              </span>
-              <select
-                className="w-full bg-[#060e20] border border-[#3c4a42] rounded-xl py-3 pl-11 pr-10 text-sm text-[#dae2fd] transition-all appearance-none focus:border-[#4edea3] focus:ring-1 focus:ring-[#4edea3]/20 cursor-pointer"
+            <Field label="Categoría">
+              <SelectInput
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
               >
-                <option value="Seleccionar categoría" disabled>Seleccionar categoría</option>
+                <option value="Seleccionar categoría" disabled>
+                  Seleccionar categoría
+                </option>
                 {CATEGORIES_CONFIG.map((catConfig) => (
                   <option key={catConfig.name} value={catConfig.name}>
                     {catConfig.name}
                   </option>
                 ))}
-              </select>
-              <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-[#bbcabf] pointer-events-none select-none text-xl">
-                expand_more
-              </span>
-            </div>
-          </div>
+              </SelectInput>
+            </Field>
           )}
 
-          {/* Payment Method */}
-          <div className="flex flex-col gap-1.5">
-            <label className="font-sans text-sm font-semibold text-[#dae2fd] ml-1">
+          <div className="space-y-2">
+            <SectionLabel>
               {entryType === "gasto" ? "Método de pago" : "Destino"}
-            </label>
+            </SectionLabel>
             <div className="grid grid-cols-2 gap-2">
-              {([
-                { value: "efectivo" as PaymentMethod, label: "Efectivo", icon: "payments" },
-                { value: "tarjeta" as PaymentMethod, label: "Tarjeta", icon: "credit_card" },
-              ]).map((method) => (
+              {(
+                [
+                  { value: "efectivo" as PaymentMethod, label: "Efectivo", icon: "payments" },
+                  { value: "tarjeta" as PaymentMethod, label: "Tarjeta", icon: "credit_card" },
+                ] as const
+              ).map((method) => (
                 <button
                   type="button"
                   key={method.value}
                   onClick={() => setPaymentMethod(method.value)}
-                  className={`py-3 px-3 rounded-xl font-sans text-sm border transition-all cursor-pointer flex items-center justify-center gap-2 ${
-                    paymentMethod === method.value
-                      ? method.value === "efectivo"
-                        ? "bg-[#4edea3]/10 border-[#4edea3] text-[#4edea3] shadow-[0_0_12px_rgba(78,222,163,0.15)]"
-                        : "bg-[#adc6ff]/10 border-[#adc6ff] text-[#adc6ff] shadow-[0_0_12px_rgba(173,198,255,0.15)]"
-                      : "bg-[#060e20] border-[#3c4a42] text-[#bbcabf] hover:border-[#bbcabf]/30"
+                  className={`${chipBase} ${
+                    paymentMethod === method.value ? chipActive : chipInactive
                   }`}
                 >
                   <span className="material-symbols-outlined text-lg">{method.icon}</span>
@@ -236,59 +233,44 @@ export default function AddExpense({ onSaveExpense, activeWeek = 1, wallets }: A
           </div>
 
           {entryType === "gasto" && (
-          <div className="flex flex-col gap-1.5">
-            <label className="font-sans text-sm font-semibold text-[#dae2fd] ml-1">
-              Semana de Registro
-            </label>
-            <div className="grid grid-cols-4 gap-2">
-              {[1, 2, 3, 4].map((wk) => (
-                <button
-                  type="button"
-                  key={wk}
-                  onClick={() => setSelectedWeek(wk)}
-                  className={`py-2 px-3 rounded-lg font-mono text-xs border transition-all cursor-pointer ${
-                    selectedWeek === wk
-                      ? "bg-[#4edea3]/10 border-[#4edea3] text-[#4edea3] shadow-[0_0_12px_rgba(78,222,163,0.15)]"
-                      : "bg-[#060e20] border-[#3c4a42] text-[#bbcabf] hover:border-[#bbcabf]/30"
-                  }`}
-                >
-                  Semana {wk}
-                </button>
-              ))}
+            <div className="space-y-2">
+              <SectionLabel>Semana de Registro</SectionLabel>
+              <div className="grid grid-cols-4 gap-2">
+                {[1, 2, 3, 4].map((wk) => (
+                  <button
+                    type="button"
+                    key={wk}
+                    onClick={() => setSelectedWeek(wk)}
+                    className={`py-2 px-2 rounded-xl text-xs border transition-all cursor-pointer font-mono ${
+                      selectedWeek === wk
+                        ? "border-sage text-paper"
+                        : "border-hairline text-muted hover:border-muted hover:text-paper"
+                    }`}
+                  >
+                    Semana {wk}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
           )}
 
-          {/* Description */}
-          <div className="flex flex-col gap-1.5">
-            <label className="font-sans text-sm font-semibold text-[#dae2fd] ml-1">
-              Descripción (Opcional)
-            </label>
-            <div className="relative">
-              <span className="material-symbols-outlined absolute left-3 top-4 text-[#bbcabf] text-xl select-none">
-                description
-              </span>
-              <textarea
-                className="w-full bg-[#060e20] border border-[#3c4a42] rounded-xl py-3 pl-11 pr-4 text-sm text-[#dae2fd] transition-all resize-none focus:border-[#4edea3] focus:ring-1 focus:ring-[#4edea3]/20"
-                placeholder="Detalles adicionales..."
-                rows={3}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
-            </div>
-          </div>
+          <Field label="Descripción (Opcional)">
+            <textarea
+              className={textareaBase}
+              placeholder="Detalles adicionales..."
+              rows={3}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </Field>
         </div>
 
-        {/* Submit Action */}
-        <div className="pt-2">
-          <button
-            type="submit"
-            className="w-full primary-gradient text-[#003824] font-sans font-bold py-4 rounded-2xl shadow-[0_8px_24px_rgba(78,222,163,0.2)] hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer text-base"
-          >
-            <span className="material-symbols-outlined font-black">check_circle</span>
+        <div className="pt-2 space-y-3">
+          <Button type="submit" fullWidth className="py-4 text-base gap-2">
+            <span className="material-symbols-outlined text-lg">check_circle</span>
             {entryType === "gasto" ? "Guardar Gasto" : "Guardar Ingreso"}
-          </button>
-          <p className="text-center mt-3 font-mono text-xs text-[#bbcabf]">
+          </Button>
+          <p className="text-center font-mono text-xs text-muted">
             Los datos se cifran localmente antes de sincronizarse.
           </p>
         </div>

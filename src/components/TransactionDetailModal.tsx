@@ -3,6 +3,11 @@ import { CATEGORIES_CONFIG } from "../mockData";
 import { Expense, PaymentMethod } from "../types";
 import { getTransactionType } from "../utils/wallet";
 import type { MutationResult } from "../types";
+import Money from "./ui/Money";
+import SectionLabel from "./ui/SectionLabel";
+import Row from "./ui/Row";
+import Button from "./ui/Button";
+import { Field, TextInput, SelectInput } from "./ui/Field";
 
 interface TransactionDetailModalProps {
   transaction: Expense;
@@ -24,6 +29,9 @@ function formatDate(dateStr: string) {
     return dateStr;
   }
 }
+
+const textareaBase =
+  "w-full bg-transparent border-0 border-b border-hairline pb-2.5 pt-1 text-paper placeholder:text-muted/60 focus:border-sage focus:ring-0 text-base resize-none";
 
 export default function TransactionDetailModal({
   transaction,
@@ -84,145 +92,141 @@ export default function TransactionDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-[#060e20]/85 backdrop-blur-md"
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-ink/80"
       onClick={onClose}
     >
       <div
-        className="glass-card w-full max-w-sm rounded-t-2xl sm:rounded-2xl p-6 space-y-5 animate-fade-in relative border border-white/10 shadow-[0_10px_40px_rgba(0,0,0,0.5)] max-h-[90vh] overflow-y-auto"
+        className="w-full max-w-sm bg-surface border border-hairline rounded-t-2xl sm:rounded-2xl p-6 space-y-5 max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
-          <h3 className="font-sans text-lg font-bold text-[#dae2fd]">
+          <h3 className="font-serif text-lg text-paper">
             {isIngreso ? "Detalle de ingreso" : "Detalle de gasto"}
           </h3>
           <button
             type="button"
             onClick={onClose}
-            className="text-[#bbcabf] hover:text-white transition-all cursor-pointer"
+            className="text-muted hover:text-paper transition-colors cursor-pointer"
           >
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
 
-        <div className="text-center py-2">
-          <p className={`font-sans text-4xl font-bold ${isIngreso ? "text-[#4edea3]" : "text-[#dae2fd]"}`}>
-            {isIngreso ? "+" : "-"}${parseFloat(amount || "0").toFixed(2)}
-          </p>
-          <p className="font-mono text-xs text-[#bbcabf] mt-1">{formatDate(transaction.date)}</p>
+        <div className="text-center py-2 space-y-1">
+          <Money
+            amount={parseFloat(amount || "0")}
+            variant={isIngreso ? "positive" : "hero"}
+            showSign
+            className="text-4xl font-semibold"
+          />
+          <p className="text-xs text-muted">{formatDate(transaction.date)}</p>
         </div>
 
         {isEditing ? (
-          <div className="space-y-3">
-            <div>
-              <label className="font-sans text-xs text-[#bbcabf]">Nombre</label>
-              <input
+          <div className="space-y-4">
+            <Field label="Nombre">
+              <TextInput
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full mt-1 bg-[#171f33]/70 border border-white/10 rounded-xl py-2.5 px-3 text-sm text-white"
               />
-            </div>
-            <div>
-              <label className="font-sans text-xs text-[#bbcabf]">Monto</label>
-              <input
+            </Field>
+            <Field label="Monto">
+              <TextInput
                 type="number"
                 step="0.01"
                 min="0"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="w-full mt-1 bg-[#171f33]/70 border border-white/10 rounded-xl py-2.5 px-3 text-sm text-white"
               />
-            </div>
+            </Field>
             {!isIngreso && (
-              <div>
-                <label className="font-sans text-xs text-[#bbcabf]">Categoría</label>
-                <select
+              <Field label="Categoría">
+                <SelectInput
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="w-full mt-1 bg-[#171f33]/70 border border-white/10 rounded-xl py-2.5 px-3 text-sm text-white"
                 >
                   {CATEGORIES_CONFIG.map((cat) => (
                     <option key={cat.name} value={cat.name}>{cat.name}</option>
                   ))}
-                </select>
-              </div>
+                </SelectInput>
+              </Field>
             )}
-            <div>
-              <label className="font-sans text-xs text-[#bbcabf]">Método</label>
-              <div className="grid grid-cols-2 gap-2 mt-1">
+            <div className="space-y-2">
+              <SectionLabel>Método</SectionLabel>
+              <div className="grid grid-cols-2 gap-2">
                 {(["efectivo", "tarjeta"] as PaymentMethod[]).map((method) => (
-                  <button
+                  <Button
                     key={method}
-                    type="button"
+                    variant={paymentMethod === method ? "outline" : "ghost"}
                     onClick={() => setPaymentMethod(method)}
-                    className={`py-2 rounded-xl text-sm border capitalize cursor-pointer ${
-                      paymentMethod === method
-                        ? "border-[#4edea3] text-[#4edea3] bg-[#4edea3]/10"
-                        : "border-white/10 text-[#bbcabf]"
-                    }`}
+                    className="capitalize py-2"
                   >
                     {method}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
-            <div>
-              <label className="font-sans text-xs text-[#bbcabf]">Descripción</label>
+            <Field label="Descripción">
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={2}
-                className="w-full mt-1 bg-[#171f33]/70 border border-white/10 rounded-xl py-2.5 px-3 text-sm text-white resize-none"
+                className={textareaBase}
               />
-            </div>
+            </Field>
           </div>
         ) : (
-          <div className="space-y-2 text-sm">
-            <p><span className="text-[#bbcabf]">Nombre:</span> <span className="text-[#dae2fd]">{transaction.name}</span></p>
+          <div>
+            <Row>
+              <span className="text-sm text-muted flex-1">Nombre</span>
+              <span className="text-sm text-paper">{transaction.name}</span>
+            </Row>
             {!isIngreso && (
-              <p><span className="text-[#bbcabf]">Categoría:</span> <span className="text-[#dae2fd]">{transaction.category}</span></p>
+              <Row>
+                <span className="text-sm text-muted flex-1">Categoría</span>
+                <span className="text-sm text-paper">{transaction.category}</span>
+              </Row>
             )}
-            <p><span className="text-[#bbcabf]">Método:</span> <span className="text-[#dae2fd] capitalize">{transaction.paymentMethod ?? "efectivo"}</span></p>
-            <p><span className="text-[#bbcabf]">Semana:</span> <span className="text-[#dae2fd]">{transaction.week}</span></p>
-            <p><span className="text-[#bbcabf]">Estado:</span> <span className="text-[#dae2fd]">{transaction.status}</span></p>
+            <Row>
+              <span className="text-sm text-muted flex-1">Método</span>
+              <span className="text-sm text-paper capitalize">{transaction.paymentMethod ?? "efectivo"}</span>
+            </Row>
+            <Row>
+              <span className="text-sm text-muted flex-1">Semana</span>
+              <span className="text-sm text-paper">{transaction.week}</span>
+            </Row>
+            <Row noBorder>
+              <span className="text-sm text-muted flex-1">Estado</span>
+              <span className="text-sm text-paper">{transaction.status}</span>
+            </Row>
             {transaction.description && (
-              <p className="text-[#bbcabf] italic">"{transaction.description}"</p>
+              <p className="text-sm text-muted italic pt-2">"{transaction.description}"</p>
             )}
           </div>
         )}
 
-        {error && <p className="text-xs text-red-400">{error}</p>}
+        {error && <p className="text-xs text-clay">{error}</p>}
 
-        <div className="flex gap-2 pt-2">
+        <div className="flex flex-col gap-2 pt-2">
           {isEditing ? (
             <>
-              <button
-                type="button"
-                onClick={resetForm}
-                className="flex-1 bg-white/5 border border-white/5 text-[#dae2fd] text-xs font-semibold py-2.5 rounded-xl cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleSave}
-                className="flex-1 bg-gradient-to-br from-[#4edea3] to-[#10b981] text-[#002113] text-xs font-bold py-2.5 rounded-xl cursor-pointer"
-              >
+              <Button fullWidth onClick={handleSave}>
                 Guardar
-              </button>
+              </Button>
+              <Button variant="ghost" fullWidth onClick={resetForm}>
+                Cancelar
+              </Button>
             </>
           ) : (
             <>
-              <button
-                type="button"
-                onClick={() => setIsEditing(true)}
-                className="flex-1 bg-white/5 border border-white/5 text-[#dae2fd] text-xs font-semibold py-2.5 rounded-xl cursor-pointer"
-              >
+              <Button variant="outline" fullWidth onClick={() => setIsEditing(true)}>
                 Editar
-              </button>
+              </Button>
               {onDelete && (
-                <button
-                  type="button"
+                <Button
+                  variant="destructive"
+                  fullWidth
                   onClick={() => {
                     const result = onDelete(transaction.id);
                     if (result.ok) {
@@ -231,10 +235,9 @@ export default function TransactionDetailModal({
                       setError(result.error);
                     }
                   }}
-                  className="flex-1 bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-semibold py-2.5 rounded-xl cursor-pointer"
                 >
                   Eliminar
-                </button>
+                </Button>
               )}
             </>
           )}

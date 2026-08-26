@@ -1,5 +1,6 @@
 import { WeekNumber } from "../utils/week";
 import { WeekRange } from "../types";
+import SectionLabel from "./ui/SectionLabel";
 
 interface ActiveWeekSelectorProps {
   activeWeek: WeekNumber;
@@ -21,17 +22,19 @@ export default function ActiveWeekSelector({
       {!compact && (
         <div className="flex items-center justify-between gap-2">
           <div>
-            <p className="font-mono text-[10px] text-[#bbcabf] uppercase tracking-wider">
-              Semana actual
-            </p>
-            <p className="font-sans text-xs text-[#bbcabf]/70 mt-0.5">
+            <SectionLabel>Semana actual</SectionLabel>
+            <p className="text-xs text-muted mt-0.5">
               Indica en qué semana del ciclo estás
             </p>
           </div>
-          <span className="material-symbols-outlined text-[#4edea3] text-xl">today</span>
+          <span className="material-symbols-outlined text-sage text-xl">today</span>
         </div>
       )}
-      <div className={`grid grid-cols-4 ${compact ? "gap-1" : "gap-2"}`}>
+      <div
+        className={`grid grid-cols-4 bg-surface-raised rounded-xl p-1 ${
+          compact ? "gap-0.5" : "gap-1"
+        }`}
+      >
         {WEEKS.map((week) => {
           const range = weekRanges?.find((item) => item.week === week);
           const isCompleted = range?.status === "completed";
@@ -41,21 +44,23 @@ export default function ActiveWeekSelector({
               key={week}
               type="button"
               onClick={() => onActiveWeekChange(week)}
-              className={`rounded-lg font-mono border transition-all cursor-pointer ${
-                compact ? "py-1 px-2 text-[10px]" : "py-2 px-3 text-xs"
+              className={`rounded-lg font-mono transition-all cursor-pointer ${
+                compact ? "py-1.5 px-1 text-[10px]" : "py-2 px-2 text-xs"
               } ${
                 activeWeek === week
-                  ? "bg-[#4edea3]/10 border-[#4edea3] text-[#4edea3] shadow-[0_0_12px_rgba(78,222,163,0.15)]"
+                  ? "bg-sage text-ink font-medium"
                   : isCompleted
-                    ? "bg-[#060e20]/70 border-[#3c4a42]/70 text-[#bbcabf]/60 hover:border-[#bbcabf]/20"
-                    : "bg-[#060e20] border-[#3c4a42] text-[#bbcabf] hover:border-[#bbcabf]/30"
+                    ? "text-muted/60 hover:text-muted"
+                    : "text-muted hover:text-paper"
               }`}
             >
               <span className="block">{compact ? `Sem ${week}` : `Semana ${week}`}</span>
               {range && (
-                <span className={`block mt-0.5 leading-tight ${
-                  compact ? "text-[8px]" : "text-[9px]"
-                } ${activeWeek === week ? "text-[#4edea3]/80" : "text-[#bbcabf]/60"}`}>
+                <span
+                  className={`block mt-0.5 leading-tight ${
+                    compact ? "text-[8px]" : "text-[9px]"
+                  } ${activeWeek === week ? "text-ink/70" : "text-muted/60"}`}
+                >
                   {range.label}
                 </span>
               )}

@@ -3,6 +3,11 @@ import { Expense, FinanceCycleConfig, MutationResult, WeeklyBudgets } from "../t
 import { CATEGORIES_CONFIG } from "../mockData";
 import ActiveWeekSelector from "./ActiveWeekSelector";
 import TransactionDetailModal from "./TransactionDetailModal";
+import Money from "./ui/Money";
+import SectionLabel from "./ui/SectionLabel";
+import Row from "./ui/Row";
+import Button from "./ui/Button";
+import { Field, TextInput, SelectInput } from "./ui/Field";
 import {
   clampMonthStartDay,
   getCurrentWeekRange,
@@ -142,50 +147,48 @@ export default function WeeklyTracking({
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="font-sans text-2xl font-bold text-[#dae2fd] mb-1">Seguimiento Semanal</h2>
-          <p className="text-[#bbcabf] font-sans text-sm">
+          <h2 className="font-serif text-2xl text-paper mb-1">Seguimiento Semanal</h2>
+          <p className="text-muted text-sm">
             Ciclo {cycleRange.label}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => setIsEditingCycle(true)}
-            className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 text-[#4edea3] flex items-center justify-center border border-white/5 transition-all cursor-pointer"
+            className="w-9 h-9 rounded-full border border-hairline text-muted hover:text-paper hover:border-muted flex items-center justify-center transition-colors cursor-pointer"
             title="Configurar inicio del ciclo"
           >
-            <span className="material-symbols-outlined text-base font-semibold">event</span>
+            <span className="material-symbols-outlined text-base">event</span>
           </button>
           {onUpdateWeekBudgets && (
             <button
               onClick={openBudgetEditor}
-              className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 text-[#4edea3] flex items-center justify-center border border-white/5 transition-all cursor-pointer"
+              className="w-9 h-9 rounded-full border border-hairline text-muted hover:text-paper hover:border-muted flex items-center justify-center transition-colors cursor-pointer"
               title="Configurar presupuestos semanales"
             >
-              <span className="material-symbols-outlined text-base font-semibold">tune</span>
+              <span className="material-symbols-outlined text-base">tune</span>
             </button>
           )}
         </div>
       </div>
 
-      <div className="glass-card rounded-xl p-4 space-y-2 border border-[#4edea3]/15">
+      <div className="border border-hairline rounded-xl p-4 space-y-2 bg-surface">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="font-mono text-[10px] text-[#bbcabf] uppercase tracking-wider">
-              Semana actual
-            </p>
-            <p className="font-sans text-sm font-semibold text-[#dae2fd] mt-1">
+            <SectionLabel>Semana actual</SectionLabel>
+            <p className="text-sm font-medium text-paper mt-1">
               Semana {currentWeekRange.week} · {currentWeekRange.label}
             </p>
           </div>
-          <span className="material-symbols-outlined text-[#4edea3] text-xl">today</span>
+          <span className="material-symbols-outlined text-sage text-xl">today</span>
         </div>
-        <div className="flex flex-wrap gap-2 text-xs font-sans text-[#bbcabf]">
-          <span className="rounded-lg bg-white/5 px-2.5 py-1">
+        <div className="flex flex-wrap gap-2 text-xs text-muted">
+          <span className="rounded-lg bg-surface-raised px-2.5 py-1">
             {daysLeftInWeek === 0
               ? "Esta semana termina hoy"
               : `Te quedan ${daysLeftInWeek} ${daysLeftInWeek === 1 ? "día" : "días"} de esta semana`}
           </span>
-          <span className="rounded-lg bg-white/5 px-2.5 py-1">
+          <span className="rounded-lg bg-surface-raised px-2.5 py-1">
             {daysLeftInCycle === 0
               ? "Tu ciclo termina hoy"
               : `Tu ciclo termina en ${daysLeftInCycle} ${daysLeftInCycle === 1 ? "día" : "días"}`}
@@ -193,13 +196,11 @@ export default function WeeklyTracking({
         </div>
       </div>
 
-      <div className="glass-card rounded-xl p-4">
-        <ActiveWeekSelector
-          activeWeek={activeWeek}
-          onActiveWeekChange={handleActiveWeekChange}
-          weekRanges={weekRanges}
-        />
-      </div>
+      <ActiveWeekSelector
+        activeWeek={activeWeek}
+        onActiveWeekChange={handleActiveWeekChange}
+        weekRanges={weekRanges}
+      />
 
       {/* Weekly summary cards swipeable / grid layout */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -219,49 +220,51 @@ export default function WeeklyTracking({
             <div
               key={wk}
               onClick={() => setSelectedWeek(wk)}
-              className={`rounded-xl p-4 cursor-pointer transition-all duration-300 transform active:scale-98 relative ${
+              className={`rounded-xl p-4 cursor-pointer transition-all border ${
                 isSelected
-                  ? "glass-card-active border-[#4edea3]/40 neo-glow"
+                  ? "bg-surface-raised border-sage"
                   : isCompleted
-                    ? "glass-card border-white/5 opacity-80 hover:opacity-100"
-                    : "glass-card border-white/5 hover:border-white/15"
+                    ? "bg-surface border-hairline opacity-80 hover:opacity-100"
+                    : "bg-surface border-hairline hover:border-muted"
               }`}
             >
               <div className="flex justify-between items-start mb-2">
                 <div>
-                  <span className={`font-mono text-xs font-bold block ${isSelected ? "text-[#4edea3]" : "text-[#bbcabf]"}`}>
+                  <span className={`font-mono text-xs font-medium block ${isSelected ? "text-sage" : "text-muted"}`}>
                     Semana {wk}
                   </span>
                   {weekRange && (
-                    <span className="font-mono text-[9px] text-[#bbcabf]/70 block mt-0.5">
+                    <span className="font-mono text-[9px] text-muted/70 block mt-0.5">
                       {weekRange.label}
                     </span>
                   )}
                 </div>
-                <span className="material-symbols-outlined text-[#4edea3] text-lg select-none" style={{ fontVariationSettings: `'FILL' ${isSelected || isCompleted ? 1 : 0}` }}>
+                <span
+                  className="material-symbols-outlined text-sage text-lg select-none"
+                  style={{ fontVariationSettings: `'FILL' ${isSelected || isCompleted ? 1 : 0}` }}
+                >
                   {isCompleted ? "check_circle" : hasSpent ? "check_circle" : isSelected ? "schedule" : "calendar_today"}
                 </span>
               </div>
 
               <div className="mb-3">
-                <div className="font-mono text-[10px] text-[#bbcabf] uppercase tracking-wider mb-0.5">
-                  Gastado
-                </div>
-                <div className={`font-sans text-lg font-extrabold ${hasSpent ? "text-[#dae2fd]" : "text-[#bbcabf]/50"}`}>
-                  ${spent.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </div>
+                <SectionLabel>Gastado</SectionLabel>
+                <Money
+                  amount={spent}
+                  className={`text-lg font-medium block mt-0.5 ${hasSpent ? "" : "text-muted/50"}`}
+                />
               </div>
 
-              <div className="w-full bg-white/5 h-1 rounded-full overflow-hidden mb-1">
+              <div className="h-1 rounded-full bg-surface-raised overflow-hidden mb-1">
                 <div
-                  className={`h-full transition-all duration-700 ${isSelected ? "bg-[#4edea3] shadow-[0_0_8px_#4edea3]" : "bg-[#4edea3]/40"}`}
+                  className="h-full bg-sage transition-all duration-700"
                   style={{ width: `${ratio}%` }}
-                ></div>
+                />
               </div>
 
-              <div className="flex justify-between font-mono text-[10px] text-[#bbcabf]">
+              <div className="flex justify-between text-[10px] text-muted">
                 <span>Presupuesto</span>
-                <span className="text-[#dae2fd]">${limit.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                <Money amount={limit} className="text-[10px]" />
               </div>
             </div>
           );
@@ -270,42 +273,47 @@ export default function WeeklyTracking({
 
       {/* Detailed Transactions Section */}
       <section className="space-y-4">
-        <h3 className="font-sans text-lg font-bold text-[#dae2fd]">
+        <h3 className="font-serif text-lg text-paper">
           Transacciones Semana {selectedWeek}
         </h3>
 
         {weekExpenses.length === 0 ? (
-          <div className="glass-card rounded-2xl p-8 text-center text-[#bbcabf]">
-            <span className="material-symbols-outlined text-4xl mb-2 text-[#bbcabf]/50">receipt_long</span>
+          <div className="border border-hairline rounded-xl p-8 text-center text-muted">
+            <span className="material-symbols-outlined text-4xl mb-2 text-muted/50">receipt_long</span>
             <p className="text-sm">No hay transacciones registradas</p>
-            <p className="text-xs text-[#bbcabf]/60 mt-1">Registra gastos para esta semana.</p>
+            <p className="text-xs text-muted/60 mt-1">Registra gastos para esta semana.</p>
           </div>
         ) : (
-          <div className="glass-card rounded-2xl overflow-hidden divide-y divide-white/5">
+          <div>
             {weekExpenses.map((expense) => {
               const isIngreso = getTransactionType(expense) === "ingreso";
               const config = isIngreso
-                ? { icon: "savings", bgColor: "bg-[#4edea3]/10", textColor: "text-[#4edea3]" }
+                ? { icon: "savings", color: undefined as string | undefined }
                 : CATEGORIES_CONFIG.find((c) => c.name === expense.category) || CATEGORIES_CONFIG[CATEGORIES_CONFIG.length - 1];
 
-              const textAccent =
-                expense.status === "Rechazado" ? "text-red-400" : isIngreso ? "text-[#4edea3]" : "text-[#4edea3]";
-
               return (
-                <div
+                <Row
                   key={expense.id}
-                  className="flex items-center justify-between p-4 hover:bg-white/5 transition-colors group relative cursor-pointer"
                   onClick={() => setSelectedTransaction(expense)}
+                  className="group"
                 >
-                  <div className="flex items-center gap-3.5 min-w-0 pr-2">
-                    <div className={`w-11 h-11 rounded-xl ${config.bgColor} flex items-center justify-center ${config.textColor} shrink-0`}>
-                      <span className="material-symbols-outlined text-lg">{config.icon}</span>
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="relative w-9 h-9 flex items-center justify-center shrink-0">
+                      {!isIngreso && config.color && (
+                        <div
+                          className="absolute top-0 right-0 w-2 h-2 rounded-full"
+                          style={{ backgroundColor: config.color }}
+                        />
+                      )}
+                      <span className={`material-symbols-outlined text-lg ${isIngreso ? "text-sage" : "text-muted"}`}>
+                        {config.icon}
+                      </span>
                     </div>
-                    <div className="min-w-0">
-                      <p className="font-sans text-sm font-semibold text-[#dae2fd] truncate group-hover:text-white">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-paper truncate">
                         {expense.name}
                       </p>
-                      <p className="font-mono text-xs text-[#bbcabf] truncate">
+                      <p className="font-mono text-xs text-muted truncate">
                         {formatDate(expense.date)} • {isIngreso ? "Ingreso" : expense.category}
                       </p>
                       {expense.description && (() => {
@@ -327,10 +335,10 @@ export default function WeeklyTracking({
                             title={isLongDescription && !isExpanded ? "Ver descripción completa" : undefined}
                           >
                             <p
-                              className={`font-sans text-[11px] text-[#bbcabf]/60 italic ${
+                              className={`text-[11px] text-muted/60 italic ${
                                 isLongDescription && !isExpanded
-                                  ? "truncate max-w-[200px] sm:max-w-xs group-hover/desc:text-[#dae2fd]/80"
-                                  : "whitespace-pre-wrap break-words text-[#dae2fd]/80"
+                                  ? "truncate max-w-[200px] sm:max-w-xs group-hover/desc:text-paper/80"
+                                  : "whitespace-pre-wrap break-words text-paper/80"
                               }`}
                             >
                               "{isLongDescription && !isExpanded
@@ -338,12 +346,12 @@ export default function WeeklyTracking({
                                 : expense.description}"
                             </p>
                             {isLongDescription && !isExpanded && (
-                              <span className="font-sans text-[10px] text-[#4edea3] font-semibold group-hover/desc:underline">
+                              <span className="text-[10px] text-sage font-medium group-hover/desc:underline">
                                 ··· ver más
                               </span>
                             )}
                             {isLongDescription && isExpanded && (
-                              <span className="font-sans text-[10px] text-[#bbcabf]/60 group-hover/desc:text-[#dae2fd]">
+                              <span className="text-[10px] text-muted group-hover/desc:text-paper">
                                 ver menos
                               </span>
                             )}
@@ -355,15 +363,19 @@ export default function WeeklyTracking({
 
                   <div className="flex items-center gap-2 shrink-0">
                     <div className="text-right">
-                      <p className={`font-mono text-sm font-semibold ${isIngreso ? "text-[#4edea3]" : "text-[#dae2fd]"}`}>
-                        {isIngreso ? "+" : "-"}${expense.amount.toFixed(2)}
-                      </p>
-                      <p className={`font-mono text-[10px] ${textAccent}`}>
+                      <Money
+                        amount={isIngreso ? expense.amount : -expense.amount}
+                        showSign
+                        variant={isIngreso ? "positive" : "default"}
+                        className="text-sm font-medium"
+                      />
+                      <p className={`font-mono text-[10px] ${
+                        expense.status === "Rechazado" ? "text-clay" : "text-muted"
+                      }`}>
                         {expense.status === "Rechazado" ? "Rechazado" : "Completado"}
                       </p>
                     </div>
 
-                    {/* Delete action button */}
                     {onDeleteExpense && (
                       <button
                         onClick={(e) => {
@@ -374,13 +386,13 @@ export default function WeeklyTracking({
                             setTimeout(() => setDeleteError(null), 3000);
                           }
                         }}
-                        className="material-symbols-outlined text-red-400 hover:text-red-300 p-1 rounded-full hover:bg-red-500/10 cursor-pointer ml-1 text-base"
+                        className="material-symbols-outlined text-clay hover:text-clay/80 p-1 rounded-full hover:bg-clay-surface cursor-pointer text-base"
                       >
                         delete
                       </button>
                     )}
                   </div>
-                </div>
+                </Row>
               );
             })}
           </div>
@@ -388,38 +400,31 @@ export default function WeeklyTracking({
       </section>
 
       {weekExpenses.length > 0 && (
-      <div className="glass-card rounded-2xl p-5 flex items-center gap-5 border-[#4edea3]/20 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-[#4edea3]/5 blur-3xl rounded-full -mr-16 -mt-16 pointer-events-none"></div>
-        <div className="w-14 h-14 rounded-full bg-[#4edea3]/10 flex items-center justify-center text-[#4edea3] shrink-0">
-          <span className="material-symbols-outlined text-3xl font-light">summarize</span>
+      <div className="border border-hairline rounded-xl p-5 flex items-center gap-5 bg-surface">
+        <div className="w-12 h-12 rounded-full bg-surface-raised flex items-center justify-center text-sage shrink-0">
+          <span className="material-symbols-outlined text-2xl">summarize</span>
         </div>
         <div className="space-y-1.5 min-w-0">
-          <h4 className="font-sans text-sm font-bold text-[#dae2fd]">
+          <h4 className="text-sm font-medium text-paper">
             Resumen Semana {selectedWeek}
           </h4>
-          <p className="font-sans text-xs text-[#bbcabf] leading-relaxed">
+          <p className="text-xs text-muted leading-relaxed">
             Total gastado:{" "}
-            <span className="text-[#dae2fd] font-bold">
-              ${weekSpent.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </span>
+            <Money amount={weekSpent} className="text-xs font-medium" />
             {" "}en {weekExpenses.length} {weekExpenses.length === 1 ? "transacción" : "transacciones"}.
           </p>
-          <p className="font-sans text-xs text-[#bbcabf] leading-relaxed">
+          <p className="text-xs text-muted leading-relaxed">
             {weekBudget > 0 ? (
               budgetRemaining >= 0 ? (
                 <>
                   Te quedan{" "}
-                  <span className="text-[#4edea3] font-bold">
-                    ${budgetRemaining.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </span>
+                  <Money amount={budgetRemaining} variant="positive" className="text-xs font-medium" />
                   {" "}del presupuesto semanal ({budgetPercentUsed}% usado).
                 </>
               ) : (
                 <>
                   Has superado el presupuesto semanal en{" "}
-                  <span className="text-red-400 font-bold">
-                    ${Math.abs(budgetRemaining).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </span>
+                  <Money amount={Math.abs(budgetRemaining)} className="text-xs font-medium text-clay" />
                   .
                 </>
               )
@@ -428,14 +433,18 @@ export default function WeeklyTracking({
             )}
           </p>
           {topCategoryName && (
-            <p className="font-sans text-xs text-[#bbcabf] leading-relaxed">
-              Mayor gasto:{" "}
-              <span className={`font-bold ${topCategoryConfig?.textColor ?? "text-[#4edea3]"}`}>
-                {topCategoryName}
+            <p className="text-xs text-muted leading-relaxed flex items-center gap-1.5 flex-wrap">
+              <span>Mayor gasto:</span>
+              {topCategoryConfig?.color && (
+                <span
+                  className="w-2 h-2 rounded-full shrink-0 inline-block"
+                  style={{ backgroundColor: topCategoryConfig.color }}
+                />
+              )}
+              <span className="font-medium text-paper">{topCategoryName}</span>
+              <span>
+                (<Money amount={topCategoryAmount} className="text-xs" />).
               </span>
-              {" "}(
-              ${topCategoryAmount.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              ).
             </p>
           )}
         </div>
@@ -443,22 +452,23 @@ export default function WeeklyTracking({
       )}
 
       {isEditingCycle && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#060e20]/85 backdrop-blur-md">
-          <div className="glass-card w-full max-w-sm rounded-2xl p-6 space-y-5 animate-fade-in relative border border-white/10 shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
-            <div className="flex items-center justify-between pb-2 border-b border-white/5">
-              <h3 className="font-sans text-lg font-bold text-[#dae2fd] flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-[#4edea3]">event</span>
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4 bg-ink/80">
+          <div className="w-full max-w-sm bg-surface border border-hairline rounded-2xl p-6 space-y-5">
+            <div className="flex items-center justify-between">
+              <h3 className="font-serif text-lg text-paper flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-sage">event</span>
                 Inicio del ciclo
               </h3>
               <button
+                type="button"
                 onClick={() => setIsEditingCycle(false)}
-                className="text-[#bbcabf] hover:text-white transition-all cursor-pointer w-6 h-6 flex items-center justify-center rounded-lg hover:bg-white/5"
+                className="text-muted hover:text-paper cursor-pointer"
               >
                 <span className="material-symbols-outlined text-lg">close</span>
               </button>
             </div>
 
-            <p className="font-sans text-xs text-[#bbcabf] leading-relaxed">
+            <p className="text-xs text-muted leading-relaxed">
               Define el día en que empieza tu ciclo financiero. Las semanas y el export se calcularán desde esa fecha.
             </p>
 
@@ -470,16 +480,12 @@ export default function WeeklyTracking({
                 });
                 setIsEditingCycle(false);
               }}
-              className="space-y-4"
+              className="space-y-5"
             >
-              <div className="space-y-1.5">
-                <label className="font-mono text-[10px] text-[#bbcabf] uppercase tracking-wider block">
-                  Día de inicio del ciclo
-                </label>
-                <select
+              <Field label="Día de inicio del ciclo">
+                <SelectInput
                   value={editCycleStartDay}
                   onChange={(e) => setEditCycleStartDay(e.target.value)}
-                  className="w-full bg-[#171f33]/70 border border-white/10 rounded-xl py-2.5 px-4 font-sans text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#4edea3] focus:border-[#4edea3] transition-all"
                 >
                   {Array.from({ length: 28 }, (_, index) => {
                     const day = index + 1;
@@ -489,37 +495,40 @@ export default function WeeklyTracking({
                       </option>
                     );
                   })}
-                </select>
-              </div>
+                </SelectInput>
+              </Field>
 
-              <button
-                type="submit"
-                className="w-full bg-gradient-to-r from-[#4edea3] to-[#10b981] text-[#002113] font-sans font-bold text-sm py-3 rounded-xl hover:opacity-90 active:scale-[0.98] transition-all cursor-pointer shadow-[0_0_15px_rgba(78,222,163,0.3)]"
-              >
-                Guardar ciclo
-              </button>
+              <div className="flex flex-col gap-2">
+                <Button type="submit" fullWidth>
+                  Guardar ciclo
+                </Button>
+                <Button type="button" variant="ghost" fullWidth onClick={() => setIsEditingCycle(false)}>
+                  Cancelar
+                </Button>
+              </div>
             </form>
           </div>
         </div>
       )}
 
       {isEditingBudgets && onUpdateWeekBudgets && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#060e20]/85 backdrop-blur-md">
-          <div className="glass-card w-full max-w-sm rounded-2xl p-6 space-y-5 animate-fade-in relative border border-white/10 shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
-            <div className="flex items-center justify-between pb-2 border-b border-white/5">
-              <h3 className="font-sans text-lg font-bold text-[#dae2fd] flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-[#4edea3]">calendar_view_week</span>
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4 bg-ink/80">
+          <div className="w-full max-w-sm bg-surface border border-hairline rounded-2xl p-6 space-y-5">
+            <div className="flex items-center justify-between">
+              <h3 className="font-serif text-lg text-paper flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-sage">calendar_view_week</span>
                 Presupuestos Semanales
               </h3>
               <button
+                type="button"
                 onClick={() => setIsEditingBudgets(false)}
-                className="text-[#bbcabf] hover:text-white transition-all cursor-pointer w-6 h-6 flex items-center justify-center rounded-lg hover:bg-white/5"
+                className="text-muted hover:text-paper cursor-pointer"
               >
                 <span className="material-symbols-outlined text-lg">close</span>
               </button>
             </div>
 
-            <p className="font-sans text-xs text-[#bbcabf] leading-relaxed">
+            <p className="text-xs text-muted leading-relaxed">
               Define cuánto planeas gastar en cada semana del mes.
             </p>
 
@@ -527,9 +536,11 @@ export default function WeeklyTracking({
               <button
                 type="button"
                 onClick={splitMonthlyBudgetEvenly}
-                className="w-full text-left font-sans text-xs text-[#4edea3] hover:text-[#7ef0c4] transition-colors cursor-pointer"
+                className="w-full text-left text-xs text-sage hover:text-sage/80 transition-colors cursor-pointer"
               >
-                Repartir presupuesto mensual (${monthlyBudget.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) en 4 semanas
+                Repartir presupuesto mensual (
+                <Money amount={monthlyBudget} className="text-xs" />
+                ) en 4 semanas
               </button>
             )}
 
@@ -548,13 +559,9 @@ export default function WeeklyTracking({
               className="space-y-4"
             >
               {[1, 2, 3, 4].map((week) => (
-                <div key={week} className="space-y-1.5">
-                  <label className="font-mono text-[10px] text-[#bbcabf] uppercase tracking-wider block">
-                    Semana {week}
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 font-sans text-sm text-[#bbcabf] select-none">$</span>
-                    <input
+                <div key={week}>
+                  <Field label={`Semana ${week}`}>
+                    <TextInput
                       type="number"
                       step="0.01"
                       min="0"
@@ -563,25 +570,26 @@ export default function WeeklyTracking({
                       onChange={(e) =>
                         setEditWeekBudgets((prev) => ({ ...prev, [week]: e.target.value }))
                       }
-                      className="w-full bg-[#171f33]/70 border border-white/10 rounded-xl py-2.5 pl-8 pr-4 font-sans text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#4edea3] focus:border-[#4edea3] transition-all"
                     />
-                  </div>
+                  </Field>
                 </div>
               ))}
 
-              <button
-                type="submit"
-                className="w-full bg-gradient-to-r from-[#4edea3] to-[#10b981] text-[#002113] font-sans font-bold text-sm py-3 rounded-xl hover:opacity-90 active:scale-[0.98] transition-all cursor-pointer shadow-[0_0_15px_rgba(78,222,163,0.3)]"
-              >
-                Guardar presupuestos
-              </button>
+              <div className="flex flex-col gap-2 pt-1">
+                <Button type="submit" fullWidth>
+                  Guardar presupuestos
+                </Button>
+                <Button type="button" variant="ghost" fullWidth onClick={() => setIsEditingBudgets(false)}>
+                  Cancelar
+                </Button>
+              </div>
             </form>
           </div>
         </div>
       )}
 
       {deleteError && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-[#171f33] border border-red-400/30 text-[#dae2fd] px-5 py-3 rounded-xl shadow-2xl text-sm max-w-xs text-center">
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-surface border border-clay text-paper px-5 py-3 rounded-xl text-sm max-w-xs text-center">
           {deleteError}
         </div>
       )}
