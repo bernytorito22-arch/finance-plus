@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Expense, FinanceCycleConfig, MonthlyBudget, WalletSplit, Wallets, WeeklyBudgets } from "../types";
 import { CATEGORIES_CONFIG } from "../mockData";
 import ActiveWeekSelector from "./ActiveWeekSelector";
 import { buildMonthlyExportPayload, downloadJsonFile } from "../utils/exportMonthlyData";
+import { buildCycleTsv } from "../utils/exportCycleTsv";
 import {
   getFinanceCycleRange,
   getFinanceWeekRanges,
@@ -32,6 +33,27 @@ interface AnalysisDetailedProps {
   onResetCycleExpenses?: () => void;
   wallets: Wallets;
   walletSplit: WalletSplit;
+}
+
+type CopyButton = "sheet" | "rows";
+type CopyNotice = { button: CopyButton; status: "copied" | "done" | "empty" | "error"; count: number } | null;
+
+function copyButtonLabel(button: CopyButton, notice: CopyNotice): string {
+  if (notice?.button === button && notice.status === "copied") return "Copiado";
+  return button === "sheet" ? "Copiar para Sheets" : "Copiar solo filas";
+}
+
+function copyNoticeMessage(notice: CopyNotice): string | null {
+  if (!notice) return null;
+  if (notice.status === "empty") return "Este ciclo no tiene movimientos.";
+  if (notice.status === "error") return "No se pudo copiar. Intenta de nuevo.";
+  if (notice.status !== "copied" && notice.status !== "done") return null;
+  if (notice.button === "sheet") {
+    return notice.count === 0
+      ? "Copiado: solo la fila de títulos."
+      : `Copiado: títulos y ${notice.count} ${notice.count === 1 ? "movimiento" : "movimientos"}.`;
+  }
+  return `Copiado: ${notice.count} ${notice.count === 1 ? "movimiento" : "movimientos"}, sin títulos.`;
 }
 
 function isSameDay(dateStr: string, ref = new Date()): boolean {
@@ -74,6 +96,10 @@ export default function AnalysisDetailed({
 }: AnalysisDetailedProps) {
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [hasConfirmedExport, setHasConfirmedExport] = useState(false);
+  const [summaryNotice, setSummaryNotice] = useState<CopyNotice>(null);
+  const [modalNotice, setModalNotice] = useState<CopyNotice>(null);
+  const copiedTimeoutRef = useRef<number | null>(null);
+  const copyGenerationRef = useRef(0);
 
   const closeResetModal = () => {
     setIsResetModalOpen(false);
@@ -149,6 +175,39 @@ export default function AnalysisDetailed({
     downloadJsonFile(payload);
   };
 
+  const copyCycle = async (includeHeader: boolean, surface: "summary" | "modal") => {
+    if (isDemoMode) return;
+    const setNotice = surface === "summary" ? setSummaryNotice : setModalNotice;
+    const button: CopyButton = includeHeader ? "sheet" : "rows";
+    const sheetOptions = {
+      cycleLabel: cycleRange.label,
+      weekRanges,
+      includeHeader,
+    };
+    const text = buildCycleTsv(cycleExpenses, sheetOptions);
+    if (!includeHeader && text === "") {
+      setNotice({ button, status: "empty", count: 0 });
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      const generation = ++copyGenerationRef.current;
+      setNotice({ button, status: "copied", count: cycleExpenses.length });
+      if (copiedTimeoutRef.current !== null) {
+        window.clearTimeout(copiedTimeoutRef.current);
+      }
+      copiedTimeoutRef.current = window.setTimeout(() => {
+        if (copyGenerationRef.current !== generation) return;
+        setNotice((current) =>
+          current?.status === "copied" ? { ...current, status: "done" } : current
+        );
+        copiedTimeoutRef.current = null;
+      }, 2000);
+    } catch {
+      setNotice({ button, status: "error" });
+    }
+  };
+
   const handleConfirmReset = () => {
     if (!hasConfirmedExport || isDemoMode) return;
     onResetCycleExpenses?.();
@@ -159,6 +218,14 @@ export default function AnalysisDetailed({
     if (!aiRecommendation && onRefreshAi && expenses.length > 0) {
       onRefreshAi();
     }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (copiedTimeoutRef.current !== null) {
+        window.clearTimeout(copiedTimeoutRef.current);
+      }
+    };
   }, []);
 
   return (
@@ -172,16 +239,6 @@ export default function AnalysisDetailed({
         </div>
         <div className="flex shrink-0 flex-col items-end gap-2">
           <Button
-            variant="outline"
-            onClick={handleExportCycle}
-            disabled={isDemoMode}
-            className="text-xs py-2 px-3"
-            title={isDemoMode ? "Cambia a Mis datos para exportar" : "Exportar ciclo JSON"}
-          >
-            <span className="material-symbols-outlined text-sm mr-1.5">download</span>
-            Exportar JSON
-          </Button>
-          <Button
             variant="destructive"
             onClick={() => setIsResetModalOpen(true)}
             disabled={isDemoMode}
@@ -192,6 +249,48 @@ export default function AnalysisDetailed({
             Reiniciar ciclo
           </Button>
         </div>
+      </section>
+
+      <section className="space-y-3 -mt-4">
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            onClick={() => copyCycle(true, "summary")}
+            disabled={isDemoMode}
+            className="text-xs py-2 px-3"
+            title={isDemoMode ? "Cambia a Mis datos para copiar" : "Copiar movimientos con títulos para pegar en Sheets"}
+          >
+            <span className="material-symbols-outlined text-sm mr-1.5">content_paste</span>
+            {copyButtonLabel("sheet", summaryNotice)}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => copyCycle(false, "summary")}
+            disabled={isDemoMode}
+            className="text-xs py-2 px-3"
+            title={isDemoMode ? "Cambia a Mis datos para copiar" : "Copiar solo filas de movimientos"}
+          >
+            <span className="material-symbols-outlined text-sm mr-1.5">table_rows</span>
+            {copyButtonLabel("rows", summaryNotice)}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleExportCycle}
+            disabled={isDemoMode}
+            className="text-xs py-2 px-3"
+            title={isDemoMode ? "Cambia a Mis datos para exportar" : "Exportar ciclo JSON"}
+          >
+            <span className="material-symbols-outlined text-sm mr-1.5">download</span>
+            Exportar JSON
+          </Button>
+        </div>
+        {copyNoticeMessage(summaryNotice) && (
+          <p className="text-xs text-muted">{copyNoticeMessage(summaryNotice)}</p>
+        )}
+        <p className="text-xs text-muted leading-relaxed">
+          La primera vez, pega “Copiar para Sheets” en la celda A1. Cada mes siguiente, usa “Copiar solo filas” y
+          pégalo en la primera fila vacía. Las columnas no cambian, así que los ciclos se apilan en la misma hoja.
+        </p>
       </section>
 
       {isDemoMode && (
@@ -225,17 +324,45 @@ export default function AnalysisDetailed({
 
             <div className="space-y-3 text-sm text-muted leading-relaxed">
               <p>
-                Se borrarán los gastos del ciclo <span className="text-paper font-medium">{cycleRange.label}</span>.
+                Se borrarán los movimientos del ciclo{" "}
+                <span className="text-paper font-medium">{cycleRange.label}</span>.
               </p>
               <p>
                 Se eliminarán{" "}
                 <span className="text-paper font-medium">{cycleExpenses.length}</span>{" "}
-                {cycleExpenses.length === 1 ? "gasto" : "gastos"}.
+                {cycleExpenses.length === 1 ? "movimiento" : "movimientos"}.
               </p>
               <p>El presupuesto y el ingreso se mantienen.</p>
               <p className="text-xs">
-                Si quieres guardarlos, exporta el JSON antes de continuar.
+                Para guardarlos, copia los movimientos y pégalos en Excel o Google Sheets. También puedes descargar
+                el JSON.
               </p>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => copyCycle(true, "modal")}
+                  disabled={isDemoMode}
+                  className="text-xs py-2 px-3 flex-1 min-w-[140px]"
+                >
+                  <span className="material-symbols-outlined text-sm mr-1.5">content_paste</span>
+                  {copyButtonLabel("sheet", modalNotice)}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => copyCycle(false, "modal")}
+                  disabled={isDemoMode}
+                  className="text-xs py-2 px-3 flex-1 min-w-[140px]"
+                >
+                  <span className="material-symbols-outlined text-sm mr-1.5">table_rows</span>
+                  {copyButtonLabel("rows", modalNotice)}
+                </Button>
+              </div>
+              {copyNoticeMessage(modalNotice) && (
+                <p className="text-xs text-muted">{copyNoticeMessage(modalNotice)}</p>
+              )}
             </div>
 
             <label className="flex items-start gap-3 cursor-pointer rounded-xl border border-hairline bg-surface p-3">
@@ -246,7 +373,7 @@ export default function AnalysisDetailed({
                 className="mt-0.5 h-4 w-4 rounded border-hairline bg-ink text-sage focus:ring-sage focus:ring-offset-0"
               />
               <span className="text-xs text-paper leading-relaxed">
-                Ya exporté mis datos / entiendo que no podré recuperarlos.
+                Ya copié mis datos a Sheets o Excel, o entiendo que al reiniciar no podré recuperarlos.
               </span>
             </label>
 
